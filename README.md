@@ -34,3 +34,10 @@ This example also shows the -buckets option that is specific to the histogram re
       -xlabel "time" -ylabel "latency" -legend topright \
       -buckets 20 \
       -map 0x5000c5000d7f96d9="Seagate 7200RPM SAS"
+
+One common task -- and one I don't look forward to -- is comparing data from multiple files, for
+both CSV and JSON. When multiple files are specified on the command line, the order IS PRESERVED.
+The rest - choosing which data to graph - is the same as above. Leaving the jobname blank means
+select from all job names and so on.
+
+    effio scatter -json sda.json -json sdb.json 

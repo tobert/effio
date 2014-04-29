@@ -17,7 +17,7 @@ func (fdata *FioData) LoadJSON(filename string) {
 	dataBytes, err := ioutil.ReadFile(filename)
 
 	if os.IsNotExist(err) {
-		log.Fatal("Could not read file %s: %s", filename, err)
+		log.Fatalf("Could not read file %s: %s", filename, err)
 	}
 
 	// fio writes a bunch of crap out to the output file before the JSON
@@ -27,7 +27,7 @@ func (fdata *FioData) LoadJSON(filename string) {
 
 	err = json.Unmarshal(dataBytes[offset:], &fdata)
 	if err != nil {
-		log.Fatal("Could parse JSON: %s", err)
+		log.Fatalf("Could not parse JSON: %s", err)
 	}
 
 	fdata.HeaderGarbage = string(dataBytes[0:offset])

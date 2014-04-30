@@ -20,6 +20,13 @@ type Latency struct {
 	Percentile    Histogram
 }
 
+func NewLatency() *Latency {
+	return &Latency{
+		PercentileStr: make(HistogramStr),
+		Percentile:    make(Histogram),
+	}
+}
+
 // same data for Mixed/Read/Write/Trim, which are present depends on
 // how fio was run
 type JobStats struct {
@@ -66,10 +73,25 @@ type ClientStat struct {
 	Port              int          `json:"port"`
 }
 
+func NewClientStat() *ClientStat {
+	return &ClientStat{
+		IODepthLevelStr: make(HistogramStr),
+		LatencyUsecStr:  make(HistogramStr),
+		LatencyMsecStr:  make(HistogramStr),
+		IODepthLevel:    make(Histogram),
+		LatencyUsec:     make(Histogram),
+		LatencyMsec:     make(Histogram),
+	}
+}
+
 type FioData struct {
 	Filename      string
 	FioVersion    string        `json:"fio version"`
 	HeaderGarbage string        `json:"garbage"`
 	ClientStats   []ClientStat  `json:"client_stats"`
 	DiskUtil      []interface{} `json:"disk_util"` // unused for now
+}
+
+func NewFioData() *FioData {
+	return &FioData{ClientStats: make([]ClientStat, 1)}
 }

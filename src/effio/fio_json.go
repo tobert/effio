@@ -20,10 +20,14 @@ func (fdata *FioData) LoadJSON(filename string) {
 		log.Fatalf("Could not read file %s: %s", filename, err)
 	}
 
-	// fio writes a bunch of crap out to the output file before the JSON
-	// so for now do the easy thing and find the first { after a \n
-	// and call it good enough
+	// fio writes a bunch of crap out to the output file before the JSON so for
+	// now do the easy thing and find the first { after a \n and call it good
 	offset := bytes.Index(dataBytes, []byte("\n{"))
+	// bytes.Index will return -1 for not found, in which case we assume that it
+	// been trimmed from the input file and start at index 0
+	if offset == -1 {
+		offset = 0
+	}
 
 	err = json.Unmarshal(dataBytes[offset:], &fdata)
 	if err != nil {

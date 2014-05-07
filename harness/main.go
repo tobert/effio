@@ -48,6 +48,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"time"
 )
 
 // loaded from JSON per the -devs flag or defaults to <hostname>.json
@@ -80,13 +81,14 @@ type FioTmplList []FioTmpl
 
 // test data generated on the fly based on info above
 type Test struct {
-	Name        string // name to be used in tests, files, etc.
-	Dir         string // directory for writing configs, logs, etc.
-	BWLog       string // filename for the bandwidth log
-	LatLog      string // filename for the latency log
-	IopsLog     string // filename for the iops log
-	Template    FioTmpl // template info struct
-	Dev         Device  // device info struct
+	Name     string    // name to be used in tests, files, etc.
+	Time     time.Time // time the test was generated / run
+	Dir      string    // directory for writing configs, logs, etc.
+	BWLog    string    // filename for the bandwidth log
+	LatLog   string    // filename for the latency log
+	IopsLog  string    // filename for the iops log
+	Template FioTmpl   // template info struct
+	Dev      Device    // device info struct
 }
 
 type TestSuite []Test
@@ -110,6 +112,9 @@ func init() {
 func main() {
 	flag.Parse()
 
+	// get the current time once and use it for the whole suite
+	now := time.Now()
+
 	// load device data from json
 	devs := loadDevJson(devJsonFlag)
 
@@ -117,7 +122,7 @@ func main() {
 	templates := loadFioTmpl(confDirFlag)
 
 	// for each device/fio config combination, create a config file in
-	// a new directory named <test>-<iso8601 date> with one directory
+	// a new directory named <name>-<iso8601 date> with one directory
 	// per test so fio can be excuted in those directories, keeping
 	// data generated along side the configs
 	suite := TestSuite{}
@@ -128,13 +133,14 @@ func main() {
 
 			// fio adds _$type.log to log file names so only provide the base name
 			test := Test{
-				Name: testName,
-				Dir: testDir,
-				BWLog: fmt.Sprintf("bw-%s", testName),
-				LatLog: fmt.Sprintf("lat-%s", testName),
-				IopsLog: fmt.Sprintf("iops-%s", testName),
+				Name:     testName,
+				Time:     now,
+				Dir:      testDir,
+				BWLog:    fmt.Sprintf("bw-%s", testName),
+				LatLog:   fmt.Sprintf("lat-%s", testName),
+				IopsLog:  fmt.Sprintf("iops-%s", testName),
 				Template: tp,
-				Dev: dev,
+				Dev:      dev,
 			}
 			suite = append(suite, test)
 		}

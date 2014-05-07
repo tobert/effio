@@ -9,12 +9,12 @@ package main
  * The JSON device file is an array of devices and some relevant data. e.g.
  * [
  *   {
+ *     "name":       "samsung-840-pro-256",
  *     "device":     "/dev/disk/by-id/ata-Samsung_SSD_840_PRO_Series_S1ATNEAD541857W",
  *     "mountpoint": "/mnt/sda",
  *     "filesystem": "ext4",
  *     "brand":      "Samsung",
  *     "series":     "840 PRO",
- *     "model":      "S1ATNEAD541857W",
  *     "capacity":   256060514304,
  *     "rotational": false,
  *     "transport":  "SATA",
@@ -25,12 +25,12 @@ package main
  * ]
  *
  * Descriptions:
+ *   name:       manually assigned, will be used in file names!
  *   device:     always use the /dev/disk/by-id/ path
  *   mountpoint: location where the filesystem is mounted
  *   filesystem: ext4, xfs, zfs, btrfs, ntfs-3g
  *   brand:      Samsung, Fusion IO, I/O Switch Tech, Seagate, Western Digital, etc.
  *   series:     "840 PRO",
- *   model:      `sg_inq /dev/sda`
  *   capacity:   `blockdev --getsize64 /dev/sda`
  *   rotational: false for SSD, true for HDD, true if device contains any HDD
  *   transport:  SATA, SAS, PCIe, MDRAID, iSCSI, virtio
@@ -52,12 +52,12 @@ import (
 
 // loaded from JSON per the -devs flag or defaults to <hostname>.json
 type Device struct {
+	Name       string
 	Device     string
 	Mountpoint string
 	Filesystem string
 	Brand      string
 	Series     string
-	Model      string
 	Capacity   int64
 	Rotational bool
 	Transport  string
@@ -73,22 +73,26 @@ type DeviceList []Device
 type FioTmpl struct {
 	Filename string // full path to the file
 	Basename string // used to generate output filenames
-	Config   string // raw template data
+	Template string // raw template data
 }
 
 type FioTmplList []FioTmpl
 
 // test data generated on the fly based on info above
 type Test struct {
-	Name        string
-	Description string
-	BWLog       string
-	LatLog      string
-	IopsLog     string
+	Name        string // name to be used in tests, files, etc.
+	Dir         string // directory for writing configs, logs, etc.
+	BWLog       string // filename for the bandwidth log
+	LatLog      string // filename for the latency log
+	IopsLog     string // filename for the iops log
+	Template    FioTmpl // template info struct
+	Dev         Device  // device info struct
 }
 
+type TestSuite []Test
+
 // command-line flags (global)
-var devJsonFlag, confDirFlag string
+var devJsonFlag, confDirFlag, outPathFlag string
 
 func init() {
 	// the default device filename is <hostname>.json
@@ -100,6 +104,7 @@ func init() {
 
 	flag.StringVar(&devJsonFlag, "devs", devfile, "A JSON file containing device metadata")
 	flag.StringVar(&confDirFlag, "conf", "./fio_configs", "A directroy containing fio config templates")
+	flag.StringVar(&outPathFlag, "out", "./conf", "Where to write the generated output, must be writeable")
 }
 
 func main() {
@@ -109,25 +114,39 @@ func main() {
 	devs := loadDevJson(devJsonFlag)
 
 	// load the fio config templates into memory
-	tmpls := loadFioTmpl(confDirFlag)
+	templates := loadFioTmpl(confDirFlag)
 
-	for _, tp := range tmpls {
-		// TODO: fill this in
-		fmt.Printf("TP: %v\n", tp)
-	}
-
-	// TODO:
 	// for each device/fio config combination, create a config file in
 	// a new directory named <test>-<iso8601 date> with one directory
 	// per test so fio can be excuted in those directories, keeping
 	// data generated along side the configs
-	for _, dev := range devs {
-		fmt.Printf("Dev: %v\n", dev)
+	suite := TestSuite{}
+	for _, tp := range templates {
+		for _, dev := range devs {
+			testName := fmt.Sprintf("%s-%s", dev.Name, tp.Basename)
+			testDir := path.Join(outPathFlag, testName)
+
+			// fio adds _$type.log to log file names so only provide the base name
+			test := Test{
+				Name: testName,
+				Dir: testDir,
+				BWLog: fmt.Sprintf("bw-%s", testName),
+				LatLog: fmt.Sprintf("lat-%s", testName),
+				IopsLog: fmt.Sprintf("iops-%s", testName),
+				Template: tp,
+				Dev: dev,
+			}
+			suite = append(suite, test)
+		}
 	}
+
+	// TODO: generate fio config, shell command, dump test to JSON
+	fmt.Printf("%v\n", suite)
+
+	// TODO: run the tests!
 }
 
 func loadDevJson(fname string) (devs DeviceList) {
-	// load the device information from JSON
 	mdbuf, err := ioutil.ReadFile(devJsonFlag)
 	if err != nil {
 		log.Fatalf("Could not read '%s': %s\n", fname, err)
@@ -140,9 +159,7 @@ func loadDevJson(fname string) (devs DeviceList) {
 	return devs
 }
 
-func loadFioTmpl(dir string) FioTmplList {
-	out := make(FioTmplList, 1)
-
+func loadFioTmpl(dir string) (out FioTmplList) {
 	visitor := func(fpath string, f os.FileInfo, err error) error {
 		if err != nil {
 			log.Fatalf("Encountered an error while loading fio config '%s': %s", fpath, err)

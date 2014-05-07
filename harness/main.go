@@ -105,19 +105,12 @@ func init() {
 func main() {
 	flag.Parse()
 
-	// load the device information from JSON
-	var devs DeviceList
-	mdbuf, err := ioutil.ReadFile(devJsonFlag)
-	if err != nil {
-		log.Fatalf("Could not read '%s': %s\n", devJsonFlag, err)
-	}
-	err = json.Unmarshal(mdbuf, &devs)
-	if err != nil {
-		log.Fatalf("Could not parse JSON: %s\n", err)
-	}
+	// load device data from json
+	devs := loadDevJson(devJsonFlag)
 
-	// load the template files into memory
+	// load the fio config templates into memory
 	tmpls := loadFioTmpl(confDirFlag)
+
 	for _, tp := range tmpls {
 		// TODO: fill this in
 		fmt.Printf("TP: %v\n", tp)
@@ -131,6 +124,20 @@ func main() {
 	for _, dev := range devs {
 		fmt.Printf("Dev: %v\n", dev)
 	}
+}
+
+func loadDevJson(fname string) (devs DeviceList) {
+	// load the device information from JSON
+	mdbuf, err := ioutil.ReadFile(devJsonFlag)
+	if err != nil {
+		log.Fatalf("Could not read '%s': %s\n", fname, err)
+	}
+	err = json.Unmarshal(mdbuf, &devs)
+	if err != nil {
+		log.Fatalf("Could not parse JSON: %s\n", err)
+	}
+
+	return devs
 }
 
 func loadFioTmpl(dir string) FioTmplList {

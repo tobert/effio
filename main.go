@@ -1,5 +1,11 @@
 package main
 
+import (
+	"./src/effio"
+	"log"
+	"os"
+)
+
 /* effio - tools for analyzing fio output
  *
  * Building:
@@ -8,24 +14,21 @@ package main
  *
  * Possible CLI designs:
  *
- *  effio json -type line -metric -in <file.json>,<file.json> -md <file> -out <file>
- *  effio latency -in <file.csv>,<file.csv>,... -md <file> -out <file>
- *
- * -md specifies a file of metadata that can be used to create legends & titles
- * {
- *   "devices": {
- *     "/dev/disk/by-id/ata-Samsung_SSD_840_PRO_Series_S1ATNEAD541857W": {
- *       "name": "Samsung 840 Pro SSD",
- *       "color": "blue"
- *   }
- * }
- *
- * License: Apache 2.0
+ *  effio make --devices devices.json --fio-dir fio_configs --out-dir /tmp/test/
  */
 
-func init() {
-}
-
 func main() {
-}
+	// all subcommands require at least one argument, keep it simple for now
+	if len(os.Args) < 3 {
+		log.Fatalf("Not enough arguments.\n")
+	}
 
+	cmd := effio.NewCmd(os.Args)
+
+	switch cmd.Command {
+	case "make":
+		cmd.Make()
+	default:
+		log.Fatalf("Invalid subcommand '%s'.\n%s\n", cmd.Command, cmd.Usage())
+	}
+}

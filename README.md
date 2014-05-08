@@ -18,8 +18,7 @@ Usage
            -out ./out
 ```
 
-Subcommands
------------
+### Subcommands
 
 ##### `effio make_suite -id <string> -dev <file.json> -fio <dir> -out <dir>`
 

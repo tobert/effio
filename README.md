@@ -21,7 +21,7 @@ Usage
 Subcommands
 -----------
 
-### make_suite -id <string> -dev <file.sjon> -fio <dir> -out <dir>
+### `make_suite -id &lt;string&gt; -dev &lt;file.json&gt; -fio &lt;dir&gt; -out &lt;dir&gt;`
 
 All arguments are required. This command takes a set of fio configuration
 and a JSON file defining the devices to be tested and produces a new

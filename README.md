@@ -9,9 +9,9 @@ Usage
 -----
 
 ```
-./effio make -id 2014-05-07 \\
-           -dev ./conf/machines/brak.tobert.org.json \\
-           -fio ./conf/fio_disk_latency \\
+./effio make -id 2014-05-07 \
+           -dev ./conf/machines/brak.tobert.org.json \
+           -fio ./conf/fio_disk_latency \
            -out ./out
 ```
 

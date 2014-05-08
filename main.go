@@ -14,20 +14,15 @@ import (
  *
  * Possible CLI designs:
  *
- *  effio make --devices devices.json --fio-dir fio_configs --out-dir /tmp/test/
+ *  effio make_suite -dev devices.json -fio fio_configs/ -out /tmp/test/
  */
 
 func main() {
-	// all subcommands require at least one argument, keep it simple for now
-	if len(os.Args) < 3 {
-		log.Fatalf("Not enough arguments.\n")
-	}
-
 	cmd := effio.NewCmd(os.Args)
 
 	switch cmd.Command {
-	case "make":
-		cmd.Make()
+	case "make_suite":
+		cmd.MakeSuite()
 	default:
 		log.Fatalf("Invalid subcommand '%s'.\n%s\n", cmd.Command, cmd.Usage())
 	}

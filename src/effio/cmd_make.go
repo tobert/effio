@@ -7,8 +7,8 @@ import (
 	"path/filepath"
 )
 
-// effio make -dev <file.json> -fio <dir> -out <dir>
-func (cmd *Cmd) Make() {
+// effio make_suite -dev <file.json> -fio <dir> -out <dir>
+func (cmd *Cmd) MakeSuite() {
 	// the default device filename is <hostname>.json
 	devfile, err := os.Hostname()
 	if err != nil {

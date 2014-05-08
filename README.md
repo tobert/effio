@@ -21,7 +21,7 @@ Usage
 Subcommands
 -----------
 
-##### `make_suite -id <string> -dev <file.json> -fio <dir> -out <dir>`
+##### `effio make_suite -id <string> -dev <file.json> -fio <dir> -out <dir>`
 
 All arguments are required. This command takes a set of fio configuration
 and a JSON file defining the devices to be tested and produces a new

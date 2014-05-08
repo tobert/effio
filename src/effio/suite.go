@@ -8,13 +8,6 @@ package effio
  * used in composite test names. A test against the above device with
  * "rand_512b_write_iops.fio" will be named
  * "rand_512b_write_iops-samsung_840_pro_256".
- *
- * 2014-05-07T19:21:00Z/
- *   rand_512b_write_iops-samsung_840_pro_256/
- *     config.fio - the fio configuration file
- *     harness.json  - a dump of all data used to generate the test
- *     output.json  - json output from fio --output-format=json
- *     run.sh     - the exact command used to run fio
  */
 
 import (
@@ -37,7 +30,7 @@ type Test struct {
 	FioBWLog    string      // filename for the bandwidth log
 	FioLatLog   string      // filename for the latency log
 	FioIopsLog  string      // filename for the iops log
-	SuiteFile   string      // dump the test data (this struct) to this file
+	TestJson    string      // dump the test data (this struct) to this file
 	CmdFile     string      // write the exact fio command used to this file
 	FioConfTmpl FioConfTmpl // template info struct
 	Device      Device      // device info struct
@@ -45,17 +38,21 @@ type Test struct {
 
 // a test suite has a global id that is also used as a directory name
 type Suite struct {
-	Id      string
-	Created time.Time // time the test was generated / run
-	Tests   []Test
+	Id        string
+	Created   time.Time // time the test was generated / run
+	SuiteJson string
+	Tests     []Test
 }
 
 // NewSuite returns an initialized Suite with the given
 // id and the Created field set to the current time.
 func NewSuite(id string) Suite {
 	now := time.Now()
-	return Suite{id, now, []Test{}}
+	fname := path.Join(id, "suite.json")
+	return Suite{id, now, fname, []Test{}}
 }
+
+// TODO: LoadSuiteDir("/path/to/ID")
 
 // Populate the test suite with the (cartesian) product of
 // Devices x FioConfTmpls to get all combinations.
@@ -79,7 +76,7 @@ func (suite *Suite) Populate(dl Devices, ftl FioConfTmpls) {
 				FioBWLog:    path.Join(testDir, "bw"),
 				FioLatLog:   path.Join(testDir, "lat"),
 				FioIopsLog:  path.Join(testDir, "iops"),
-				SuiteFile:   path.Join(suite.Id, "suite.json"),
+				TestJson:    path.Join(testDir, "test.json"),
 				CmdFile:     path.Join(testDir, "run.sh"),
 				FioConfTmpl: tp,
 				Device:      dev,
@@ -94,13 +91,35 @@ func (suite *Suite) Populate(dl Devices, ftl FioConfTmpls) {
 func (suite *Suite) WriteAll(basePath string) {
 	suite.mkdirAll(basePath)
 
+	suite.WriteSuiteJson(basePath)
+
 	for _, test := range suite.Tests {
 		test.WriteFioFile(basePath)
-		test.WriteSuiteFile(basePath)
+		test.WriteTestJson(basePath)
 		test.WriteCmdFile(basePath)
 	}
 }
 
+// WriteSuiteJson dumps the suite data structure to a JSON file. This
+// file is used by some effio subcommands, such as run_suite and various
+// reports.
+// <basePath>/<suite id>/suite.json
+func (suite *Suite) WriteSuiteJson(basePath string) {
+	outfile := path.Join(basePath, suite.SuiteJson)
+
+	js, err := json.MarshalIndent(suite, "", "  ")
+	if err != nil {
+		log.Fatalf("Failed to encode suite data as JSON: %s\n", err)
+	}
+
+	// MarshalIndent does not follow the final brace with a newline
+	js = append(js, byte('\n'))
+
+	err = ioutil.WriteFile(outfile, js, 0644)
+	if err != nil {
+		log.Fatalf("Failed to write suite JSON data file '%s': %s\n", outfile, err)
+	}
+}
 
 // mkdirAll(path) creates the directory structure of a test suite
 // under directory 'path'. This must be called before the Write*()
@@ -135,11 +154,10 @@ func (test *Test) WriteFioFile(basePath string) {
 	}
 }
 
-// WriteSuiteFile dumps the suite data structure to a JSON file that can be
-// reloaded with LoadSuiteFile().
-// <basePath>/<suite id>/suite.json
-func (test *Test) WriteSuiteFile(basePath string) {
-	outfile := path.Join(basePath, test.SuiteFile)
+// WriteTestJson dumps the suite data structure to a JSON file for posterity (and debugging).
+// <basePath>/<suite id>/<generated test name>/test.json
+func (test *Test) WriteTestJson(basePath string) {
+	outfile := path.Join(basePath, test.TestJson)
 
 	js, err := json.MarshalIndent(test, "", "  ")
 	if err != nil {
@@ -151,7 +169,7 @@ func (test *Test) WriteSuiteFile(basePath string) {
 
 	err = ioutil.WriteFile(outfile, js, 0644)
 	if err != nil {
-		log.Fatalf("Failed to write JSON data file '%s': %s\n", outfile, err)
+		log.Fatalf("Failed to write test JSON data file '%s': %s\n", outfile, err)
 	}
 }
 

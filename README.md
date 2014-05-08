@@ -5,6 +5,9 @@ effio
 
 Tools for running suites of tests with fio, capturing the output, then generating reports.
 
+This tool establishes and automates a few conventions for managing tests with the goal
+of making those tests manageable and repeatable.
+
 Usage
 -----
 
@@ -13,6 +16,38 @@ Usage
            -dev ./conf/machines/brak.tobert.org.json \
            -fio ./conf/fio_disk_latency \
            -out ./out
+```
+
+Subcommands
+-----------
+
+### make_suite -id <string> -dev <file.sjon> -fio <dir> -out <dir>
+
+All arguments are required. This command takes a set of fio configuration
+and a JSON file defining the devices to be tested and produces a new
+tree of files containing all of the data required to run the suite. The
+tests are a cartesian product of all fio configs x all devices in the json.
+
+Fio configuration files are run through text/template with data from the device
+and other derived strings available.
+
+* `-id string` a unique id for the generated suite, should be a suitable directory name
+* `-dev file.json` a file populated with device information, documented below
+* `-fio dir` a directory containing fio configuration files
+* `-out dir` the suite will be written under this dir with id as the first entry
+
+The directory structure will look something like this, given -id 'foo', the device
+json below, and one fio test in the -fio dir, dir/rand_512b_write_iops.fio.
+
+```
+dir/
+    foo/
+        suite.json    # a dump of all information related to the suite
+        rand_512b_write_iops-samsung_840_pro_256/
+          config.fio  # the fio configuration file
+          test.json   # a dump of all data used to generate this test
+          output.json # json output from fio --output-format=json
+          run.sh      # the exact command used to run fio
 ```
 
 Device JSON Format

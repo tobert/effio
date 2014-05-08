@@ -1,0 +1,22 @@
+[global]
+rw=randrw
+rwmixread=0
+blocksize=512
+ioengine=sync
+norandommmap=1
+direct=1
+iodepth=1
+iodepth_batch=1
+iodepth_batch_complete=1
+group_reporting=1
+ramp_time=5
+time_based=1
+runtime=100
+randrepeat=0
+directory={{ .Device.Mountpoint }}
+
+[{{ .Name }}]
+write_bw_log={{ .FioBWLog }}
+write_lat_log={{ .FioLatLog }}
+write_iops_log={{ .FioIopsLog }}
+

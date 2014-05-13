@@ -28,9 +28,7 @@ func NewCmd(args []string) Cmd {
 	return Cmd{args[0], args[1], args[2:], fs}
 }
 
+// TODO: fill in usage when things settle down
 func (cmd *Cmd) Usage() string {
-	txt := `Usage: %s <command> <args>
-	make --device-json <file> --fio-configs <dir> --output <dir>
-`
-	return fmt.Sprintf(txt, os.Args[0])
+	return fmt.Sprintf("Usage: %s <command> <args>", os.Args[0])
 }

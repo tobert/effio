@@ -52,7 +52,21 @@ func NewSuite(id string) Suite {
 	return Suite{id, now, fname, []Test{}}
 }
 
-// TODO: LoadSuiteDir("/path/to/ID")
+// LoadSuiteJson loads a suite from JSON. Argument is a path to a
+// JSON file that has a complete suite's information in it.
+func LoadSuiteJson(spath string) (suite Suite) {
+	data, err := ioutil.ReadFile(spath)
+	if err != nil {
+		log.Fatalf("Could not read suite JSON file '%s': %s", spath, err)
+	}
+
+	err = json.Unmarshal(data, &suite)
+	if err != nil {
+		log.Fatalf("Could not parse suite JSON in file '%s': %s", spath, err)
+	}
+
+	return suite
+}
 
 // Populate the test suite with the (cartesian) product of
 // Devices x FioConfTmpls to get all combinations.

@@ -23,6 +23,8 @@ func main() {
 	switch cmd.Command {
 	case "make":
 		cmd.MakeSuite()
+	case "run":
+		cmd.RunSuite()
 	default:
 		log.Fatalf("Invalid subcommand '%s'.\n%s\n", cmd.Command, cmd.Usage())
 	}

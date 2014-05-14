@@ -58,10 +58,11 @@ func InventoryDevs() (devs Devices) {
 
 		bdev := strings.TrimRight(letter, "1234567890")
 		model := GetSysBlockString(bdev, "device/model")
-		size := GetSysBlockInt(bdev, "size")
 		bsize := GetSysBlockInt(bdev, "queue/hw_sector_size")
+		size := GetSysBlockInt(bdev, "size") * bsize
 		rotational := GetSysBlockInt(bdev, "queue/rotational")
 		brand := GuessBrand(model)
+		// lower case, replace spaces and dashes with underscore
 		name := strings.Replace(strings.Replace(strings.ToLower(model), " ", "_", -1), "-", "_", -1)
 
 		d := Device{

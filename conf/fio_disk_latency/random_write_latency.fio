@@ -3,7 +3,7 @@ rw=randrw
 rwmixread=0
 blocksize=512
 ioengine=sync
-norandommmap=1
+norandommap=1
 direct=1
 iodepth=1
 iodepth_batch=1
@@ -14,6 +14,7 @@ time_based=1
 runtime=100
 randrepeat=0
 directory={{ .Device.Mountpoint }}
+size=100g
 
 [{{ .Name }}]
 write_bw_log={{ .FioBWLog }}

@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 )
 
-// effio make_suite -dev <file.json> -fio <dir> -suite <dir>
+// effio make -dev <file.json> -fio <dir> -path <dir>
 func (cmd *Cmd) MakeSuite() {
 	// the default device filename is <hostname>.json
 	devfile, err := os.Hostname()
@@ -17,12 +17,12 @@ func (cmd *Cmd) MakeSuite() {
 	devfile = fmt.Sprintf("%s.json", devfile)
 
 	// parse subcommand arguments
-	var idFlag, devFlag, fioFlag, suiteFlag string
+	var idFlag, devFlag, fioFlag, pathFlag string
 	fs := cmd.FlagSet
 	fs.StringVar(&idFlag, "id", "", "Id of the test suite")
 	fs.StringVar(&devFlag, "dev", devfile, "JSON file containing device metadata")
 	fs.StringVar(&fioFlag, "fio", "fio_configs/", "directory containing fio config templates")
-	fs.StringVar(&suiteFlag, "suite", "conf/", "generated suite is written to this directory")
+	fs.StringVar(&pathFlag, "path", "./suites/", "generated suite is written to this path")
 	fs.Parse(cmd.Args)
 
 	// load device data from json
@@ -31,13 +31,13 @@ func (cmd *Cmd) MakeSuite() {
 	// load the fio config templates into memory
 	templates := LoadFioConfDir(mustAbs(fioFlag))
 
-	// use an absolute directory for suiteFlag
-	suiteDir := mustAbs(suiteFlag)
+	// use an absolute directory for pathFlag
+	outDir := mustAbs(pathFlag)
 
 	// build up a test suite of devs x templates
 	suite := NewSuite(idFlag)
 	suite.Populate(devs, templates)
-	suite.WriteAll(suiteDir)
+	suite.WriteAll(outDir)
 }
 
 // mustAbs change any relative path to an absolute path

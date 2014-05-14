@@ -15,12 +15,12 @@ Usage
 ./effio make -id 2014-05-07 \
            -dev ./conf/machines/brak.tobert.org.json \
            -fio ./conf/fio_disk_latency \
-           -suite ./out
+           -path ./out
 ```
 
 ### Subcommands
 
-##### `effio make -id <string> -suite <dir> -dev <file.json> -fio <dir>`
+##### `effio make -id <string> -path <dir> -dev <file.json> -fio <dir>`
 
 All arguments are required. This command takes a set of fio configuration
 and a JSON file defining the devices to be tested and produces a new
@@ -31,16 +31,16 @@ Fio configuration files are run through text/template with data from the device
 and other derived strings available.
 
 * `-id string` a unique id for the generated suite, should be a suitable directory name
-* `-suite dir` the suite will be written under this dir with id as the first entry
+* `-path dir` the suite will be written under this dir with id as the first entry
 * `-dev file.json` a file populated with device information, documented below
 * `-fio dir` a directory containing fio configuration files
 
-The directory structure will look something like this, given -id 'foo', the device
+The directory structure will look something like this, given -id 'ID', the device
 json below, and one fio test in the -fio dir, dir/rand_512b_write_iops.fio.
 
 ```
-dir/
-    foo/
+path/
+    ID/
         suite.json    # a dump of all information related to the suite
         rand_512b_write_iops-samsung_840_pro_256/
           config.fio  # the fio configuration file

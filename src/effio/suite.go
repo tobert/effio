@@ -16,7 +16,9 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
+	"os/exec"
 	"path"
+	"strings"
 	"time"
 )
 
@@ -24,7 +26,7 @@ import (
 type Test struct {
 	Name        string      // name to be used in tests, files, etc.
 	Dir         string      // directory for writing configs, logs, etc.
-	FioCmd      string      // the fio command to execute to run the test
+	FioArgs     []string    // the arguments to the fio command for the test
 	FioFile     string      // generated fio config file name
 	FioJson     string      // generated fio json output file name
 	FioBWLog    string      // filename for the bandwidth log
@@ -40,6 +42,7 @@ type Test struct {
 type Suite struct {
 	Id        string
 	Created   time.Time // time the test was generated / run
+	EffioCmd  []string  // os.Args() of the effio command used to generate the suite
 	SuiteJson string
 	Tests     []Test
 }
@@ -49,7 +52,7 @@ type Suite struct {
 func NewSuite(id string) Suite {
 	now := time.Now()
 	fname := path.Join(id, "suite.json")
-	return Suite{id, now, fname, []Test{}}
+	return Suite{id, now, os.Args, fname, []Test{}}
 }
 
 // LoadSuiteJson loads a suite from JSON. Argument is a path to a
@@ -68,30 +71,39 @@ func LoadSuiteJson(spath string) (suite Suite) {
 	return suite
 }
 
+// Run the whole suite one at a time letting fio write its output into
+// the suite directories. Repeated runs will overwrite files; behavior
+// is dependent on what fio does with existing files for now.
+func (suite *Suite) Run(spath string) {
+	for _, test := range suite.Tests {
+		test.Run(spath)
+	}
+}
+
 // Populate the test suite with the (cartesian) product of
 // Devices x FioConfTmpls to get all combinations.
 // This does not modify the filesystem.
 func (suite *Suite) Populate(dl Devices, ftl FioConfTmpls) {
 	for _, tp := range ftl {
 		for _, dev := range dl {
+			// I suppose these conventions could be defined higher up in the call stack
+			// but this makes things a little easier to modify down the road.
 			testName := fmt.Sprintf("%s-%s", dev.Name, tp.Name)
 			testDir := path.Join(suite.Id, testName)
-			fioJson := path.Join(testDir, "output.json")
-			fioConf := path.Join(testDir, "config.fio")
-			cmd := fmt.Sprintf("fio --output-format=json --output=%s %s", fioJson, fioConf)
+			args := []string{"--output-format=json", "--output=output.json", "config.fio"}
 
 			// fio adds _$type.log to log file names so only provide the base name
 			test := Test{
 				Name:        testName,
 				Dir:         testDir,
-				FioCmd:      cmd,
-				FioFile:     fioConf,
-				FioJson:     fioJson,
-				FioBWLog:    path.Join(testDir, "bw"),
-				FioLatLog:   path.Join(testDir, "lat"),
-				FioIopsLog:  path.Join(testDir, "iops"),
-				TestJson:    path.Join(testDir, "test.json"),
-				CmdFile:     path.Join(testDir, "run.sh"),
+				FioArgs:     args,
+				FioFile:     "config.fio",
+				FioJson:     "output.json",
+				FioBWLog:    "bw",
+				FioLatLog:   "lat",
+				FioIopsLog:  "iops",
+				TestJson:    "test.json",
+				CmdFile:     "run.sh",
 				FioConfTmpl: tp,
 				Device:      dev,
 			}
@@ -151,10 +163,54 @@ func (suite *Suite) mkdirAll(basePath string) {
 	}
 }
 
+func (test *Test) Run(spath string) {
+	tpath := path.Join(spath, test.Dir)
+	err := os.Chdir(tpath)
+	if err != nil {
+		log.Fatalf("Could not chdir to '%s': %s\n", tpath, err)
+	}
+
+	fioPath, err := exec.LookPath("fio")
+	if err != nil {
+		log.Fatalf("Could not locate an fio command in PATH: %s\n", err)
+	}
+
+	cmd := exec.Command(fioPath, test.FioArgs...)
+	before := time.Now()
+
+	stderr, err := cmd.StderrPipe()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	if err := cmd.Start(); err != nil {
+		log.Fatalf("Could not run '%s %s': %s\n", fioPath, strings.Join(test.FioArgs, " "))
+	}
+
+	// grab stderr in case something goes wrong
+	// TODO: switch this to io.Copy?
+	errors, err := ioutil.ReadAll(stderr)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	err = cmd.Wait()
+
+	// TODO: figure out if this is worth recording and record it
+	elapsed := time.Since(before)
+
+	// it might be OK to let 1 fio command out of a suite fail?
+	if err != nil {
+		log.Printf(string(errors))
+		log.Fatalf("Command '%s %s' failed: %s\n", fioPath, strings.Join(test.FioArgs, " "), err)
+	}
+	log.Printf("Elapsed: %s\n", elapsed)
+}
+
 // DumpFioFile writes the fio configuration file.
 // <basePath>/<suite id>/<generated test name>/config.fio
 func (test *Test) WriteFioFile(basePath string) {
-	outfile := path.Join(basePath, test.FioFile)
+	outfile := path.Join(basePath, test.Dir, test.FioFile)
 
 	fd, err := os.OpenFile(outfile, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
 	if err != nil {
@@ -171,7 +227,7 @@ func (test *Test) WriteFioFile(basePath string) {
 // WriteTestJson dumps the suite data structure to a JSON file for posterity (and debugging).
 // <basePath>/<suite id>/<generated test name>/test.json
 func (test *Test) WriteTestJson(basePath string) {
-	outfile := path.Join(basePath, test.TestJson)
+	outfile := path.Join(basePath, test.Dir, test.TestJson)
 
 	js, err := json.MarshalIndent(test, "", "  ")
 	if err != nil {
@@ -190,7 +246,7 @@ func (test *Test) WriteTestJson(basePath string) {
 // WriteCmdFile writes the command to a file as a mini shell script.
 // <basePath>/<suite id>/<test name>/run.sh
 func (test *Test) WriteCmdFile(basePath string) {
-	outfile := path.Join(basePath, test.CmdFile)
+	outfile := path.Join(basePath, test.Dir, test.CmdFile)
 
 	fd, err := os.OpenFile(outfile, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0755)
 	if err != nil {
@@ -198,5 +254,10 @@ func (test *Test) WriteCmdFile(basePath string) {
 	}
 	defer fd.Close()
 
-	fmt.Fprintf(fd, "#!/bin/bash -x\n%s\n", test.FioCmd)
+	// just use 'fio' if it isn't found on the path
+	fioPath, err := exec.LookPath("fio")
+	if err != nil {
+		fioPath = "fio"
+	}
+	fmt.Fprintf(fd, "#!/bin/bash -x\n%s %s\n", fioPath, strings.Join(test.FioArgs, " "))
 }

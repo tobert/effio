@@ -76,8 +76,9 @@ func InventoryDevs() (devs Devices) {
 			Rotational: (rotational == 1),
 			Transport:  "", // can be detected but it's a lot of work
 			HBA:        "", // ditto
-			Media:      "", // no way to detect reliably
+			Media:      "", // no way to detect
 			BlockSize:  int(bsize),
+			RPM:        0, // no way to detect?
 		}
 
 		devs = append(devs, d)

@@ -11,6 +11,7 @@
       "transport":  "SATA",
       "hba":        "AHCI",
       "media":      "MLC",
-      "blocksize":  512
+      "blocksize":  512,
+	  "RPM":        0
     }
 ]

@@ -21,6 +21,7 @@ type Device struct {
 	HBA        string
 	Media      string
 	BlockSize  int
+	RPM        int
 }
 
 type Devices []Device

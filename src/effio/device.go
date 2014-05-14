@@ -9,19 +9,19 @@ import (
 )
 
 type Device struct {
-	Name       string
-	Device     string
-	Mountpoint string
-	Filesystem string
-	Brand      string
-	Series     string
-	Capacity   int64
-	Rotational bool
-	Transport  string
-	HBA        string
-	Media      string
-	BlockSize  int
-	RPM        int
+	Name       string `json:"name"`
+	Device     string `json:"device"`
+	Mountpoint string `json:"mountpoint"`
+	Filesystem string `json:"filesystem"`
+	Brand      string `json:"brand"`
+	Series     string `json:"series"`
+	Capacity   int64  `json:"capacity"`
+	Rotational bool   `json:"rotational"`
+	Transport  string `json:"transport"`
+	HBA        string `json:"hba"`
+	Media      string `json:"media"`
+	BlockSize  int    `json:"blocksize"`
+	RPM        int    `json:"rpm"`
 }
 
 type Devices []Device

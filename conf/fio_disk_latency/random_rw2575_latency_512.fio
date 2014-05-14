@@ -1,5 +1,7 @@
 [global]
-rw=randwrite
+rw=randrw
+rwmixread=25
+rwmixwrite=75
 blocksize=512
 ioengine=sync
 norandommap=1
@@ -17,7 +19,7 @@ directory={{ .Device.Mountpoint }}
 numjobs=1
 
 [{{ .Name }}]
-description="random 512b write latency, 1 job"
+description="random 512b 25/75 read/write latency, 1 job"
 write_bw_log={{ .FioBWLog }}
 write_lat_log={{ .FioLatLog }}
 write_iops_log={{ .FioIopsLog }}

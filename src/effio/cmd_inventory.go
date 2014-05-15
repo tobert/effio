@@ -8,12 +8,14 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 )
 
 func (cmd *Cmd) Inventory() {
 	devs := InventoryDevs()
+	sort.Sort(devs)
 	js, err := json.MarshalIndent(devs, "", "  ")
 	if err != nil {
 		log.Fatalf("Failed to encode inventory JSON: %s\n", err)

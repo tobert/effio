@@ -79,7 +79,7 @@ func InventoryDevs() (devs Devices) {
 			Transport:  "", // can be detected but it's a lot of work
 			HBA:        "", // ditto
 			Media:      "", // no way to detect
-			BlockSize:  int(bsize),
+			Blocksize:  int(bsize),
 			RPM:        0, // no way to detect?
 		}
 

@@ -23,7 +23,7 @@ type Device struct {
 	Transport  string `json:"transport"`
 	HBA        string `json:"hba"`
 	Media      string `json:"media"`
-	BlockSize  int    `json:"blocksize"`
+	Blocksize  int    `json:"blocksize"`
 	RPM        int    `json:"rpm"`
 }
 

@@ -1,6 +1,6 @@
 [global]
 rw=randwrite
-blocksize=512
+blocksize={{ .Device.Blocksize }}
 ioengine=libaio
 norandommap=1
 direct=1
@@ -17,7 +17,7 @@ directory={{ .Device.Mountpoint }}
 numjobs=4
 
 [{{ .Name }}]
-description="random 512b write peak iops, 4 jobs"
+description="random {{ .Device.Blocksize }}b write peak iops, 4 jobs"
 write_bw_log={{ .FioBWLog }}
 write_lat_log={{ .FioLatLog }}
 write_iops_log={{ .FioIopsLog }}

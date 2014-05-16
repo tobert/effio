@@ -224,7 +224,7 @@ func (test *Test) WriteFioFile(basePath string) {
 
 	err = test.FioConfTmpl.tmpl.Execute(fd, test)
 	if err != nil {
-		log.Fatalf("Template execution failed: %s\n", err)
+		log.Fatalf("Template execution failed for '%s': %s\n", outfile, err)
 	}
 }
 

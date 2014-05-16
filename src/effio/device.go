@@ -10,11 +10,14 @@ import (
 
 type Device struct {
 	Name       string `json:"name"`
+	Notes      string `json:"notes"`
+	Ignore     bool   `json:"ignore"`
 	Device     string `json:"device"`
 	Mountpoint string `json:"mountpoint"`
 	Filesystem string `json:"filesystem"`
 	Brand      string `json:"brand"`
 	Series     string `json:"series"`
+	Datasheet  string `json:"datasheet"`
 	Capacity   int64  `json:"capacity"`
 	Rotational bool   `json:"rotational"`
 	Transport  string `json:"transport"`

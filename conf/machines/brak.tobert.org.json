@@ -1,11 +1,14 @@
 [
     {
 	  "name":       "samsung_840_pro_256",
+	  "notes": "",
+	  "ignore": false,
       "device":     "/dev/disk/by-id/ata-Samsung_SSD_840_PRO_Series_S1ATNEAD541857W",
       "mountpoint": "/mnt/sda",
       "filesystem": "ext4",
       "brand":      "Samsung",
       "series":     "840 PRO",
+	  "datasheet": "http://www.samsung.com/global/business/semiconductor/Downloads/DataSheet-Samsung_SSD_840_PRO_Rev12.pdf",
       "capacity":   256060514304,
       "rotational": false,
       "transport":  "SATA",

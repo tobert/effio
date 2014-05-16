@@ -86,6 +86,10 @@ func (suite *Suite) Run(spath string) {
 func (suite *Suite) Populate(dl Devices, ftl FioConfTmpls) {
 	for _, tp := range ftl {
 		for _, dev := range dl {
+			if dev.Ignore {
+				continue
+			}
+
 			// I suppose these conventions could be defined higher up in the call stack
 			// but this makes things a little easier to modify down the road.
 			testName := fmt.Sprintf("%s-%s", dev.Name, tp.Name)

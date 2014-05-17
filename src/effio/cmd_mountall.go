@@ -3,8 +3,8 @@ package effio
 import (
 	"log"
 	"os"
-	"path"
 	"os/exec"
+	"path"
 )
 
 // TODO:

@@ -96,8 +96,8 @@
   },
   {
     "name": "seagate_constellation_7200_st9500530ns",
-    "mountpoint": "/mnt/effio/seagate_constellation_7200_st9500530ns",
-    "notes": "root drive in btrfs RAID1, btrfs subvolume create /mnt/root_raid",
+    "mountpoint": "/mnt/effio/root_btrfs_raid1",
+    "notes": "root drive in btrfs RAID1, btrfs subvolume create /mnt/effio/root_btrfs_raid1",
     "ignore": false,
     "device": "/dev/disk/by-id/wwn-0x5000c50026c5694e-part1",
     "filesystem": "ext4",

@@ -75,8 +75,13 @@ func LoadSuiteJson(spath string) (suite Suite) {
 // the suite directories. Repeated runs will overwrite files; behavior
 // is dependent on what fio does with existing files for now.
 func (suite *Suite) Run(spath string) {
+	wd, err := os.Getwd()
+	if err != nil {
+		log.Fatalf("Could not get working directory: %s\n", err)
+	}
+
 	for _, test := range suite.Tests {
-		test.Run(spath)
+		test.Run(path.Join(wd, spath))
 	}
 }
 
@@ -169,6 +174,7 @@ func (suite *Suite) mkdirAll(basePath string) {
 
 func (test *Test) Run(spath string) {
 	tpath := path.Join(spath, test.Dir)
+
 	err := os.Chdir(tpath)
 	if err != nil {
 		log.Fatalf("Could not chdir to '%s': %s\n", tpath, err)

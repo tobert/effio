@@ -27,6 +27,8 @@ func main() {
 		cmd.RunSuite()
 	case "inventory":
 		cmd.Inventory()
+	case "mountall":
+		cmd.Mountall()
 	default:
 		log.Fatalf("Invalid subcommand '%s'.\n%s\n", cmd.Command, cmd.Usage())
 	}

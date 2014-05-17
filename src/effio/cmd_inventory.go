@@ -70,7 +70,7 @@ func InventoryDevs() (devs Devices) {
 		d := Device{
 			Name:       name,
 			Device:     dpath,
-			Mountpoint: path.Join("/mnt", bdev),
+			Mountpoint: path.Join("/mnt/effio", name),
 			Filesystem: "ext4",
 			Brand:      brand,
 			Series:     model,

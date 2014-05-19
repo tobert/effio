@@ -33,9 +33,9 @@ func NewCmd(args []string) (cmd Cmd) {
 	}
 
 	cmd.FlagSet = flag.NewFlagSet(cmd.Process, flag.ExitOnError)
-	cmd.FlagSet.Usage = func () {
-	    fmt.Fprintf(os.Stderr, "Usage of %s:\n", os.Args[0])
-	    cmd.FlagSet.PrintDefaults()
+	cmd.FlagSet.Usage = func() {
+		fmt.Fprintf(os.Stderr, "Usage of %s:\n", os.Args[0])
+		cmd.FlagSet.PrintDefaults()
 		os.Exit(2)
 	}
 

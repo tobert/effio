@@ -14,7 +14,14 @@ import (
 )
 
 func (cmd *Cmd) Inventory() {
-	devs := InventoryDevs()
+	// for some reason by-id doesn't show up on VMware Fusion
+	// this allows for pointing at by-path or by-uuid instead
+	var devPathFlag string
+	cmd.FlagSet.StringVar(&devPathFlag, "path", "/dev/disk/by-id", "dev path to search for devices")
+	cmd.FlagSet.Parse(cmd.Args)
+
+	// load device data from json
+	devs := InventoryDevs(devPathFlag)
 	sort.Sort(devs)
 	js, err := json.MarshalIndent(devs, "", "  ")
 	if err != nil {
@@ -28,7 +35,7 @@ func (cmd *Cmd) Inventory() {
 // ext4 filesystem (for now). This finds all the devices and grabs most
 // of the info needed for the device JSON file and dumps it to stdout
 // so it can be put in a file and edited to taste.
-func InventoryDevs() (devs Devices) {
+func InventoryDevs(dpath string) (devs Devices) {
 	visitor := func(dpath string, f os.FileInfo, err error) error {
 		if err != nil {
 			log.Fatalf("Encountered an error while inventorying devices '%s': %s", dpath, err)
@@ -88,7 +95,7 @@ func InventoryDevs() (devs Devices) {
 		return nil
 	}
 
-	err := filepath.Walk("/dev/disk/by-id", visitor)
+	err := filepath.Walk(dpath, visitor)
 	if err != nil {
 		log.Fatalf("Could not inventory devices in /dev/disk/by-id: %s", err)
 	}

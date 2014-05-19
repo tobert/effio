@@ -25,6 +25,10 @@ func (cmd *Cmd) MakeSuite() {
 	fs.StringVar(&pathFlag, "path", "./suites/", "generated suite is written to this path")
 	fs.Parse(cmd.Args)
 
+	if idFlag == "" {
+		fs.Usage()
+	}
+
 	// load device data from json
 	devs := LoadDevicesFile(mustAbs(devFlag))
 

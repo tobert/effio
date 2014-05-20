@@ -1,8 +1,19 @@
 [global]
 ioengine=posixaio
 rw=readwrite
+blocksize={{ .Device.Blocksize }}
 size=1g
 directory={{ .Device.Mountpoint }}
 thread=1
+iodepth=1
+iodepth_batch=1
+iodepth_batch_complete=1
+group_reporting=1
+numjobs=1
 
-[trivial-readwrite-1g]
+[{{ .Name }}]
+description="trivial POSIX async IO {{ .Device.Blocksize }}b mixed rw latency, 1 job"
+write_bw_log={{ .FioBWLog }}
+write_lat_log={{ .FioLatLog }}
+write_iops_log={{ .FioIopsLog }}
+

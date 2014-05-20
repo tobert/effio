@@ -1,0 +1,20 @@
+[
+  {
+    "name": "apple_ssd_sd256e",
+    "notes": "MacbookPro10,1",
+    "ignore": false,
+    "device": "/dev/disk0s2",
+    "mountpoint": "/Volumes/OS/private/tmp",
+    "filesystem": "hfs",
+    "brand": "Apple",
+    "series": "SSD SD256E 1027AP",
+    "datasheet": "",
+    "capacity": 21474836480,
+    "rotational": false,
+    "transport": "SATA",
+    "hba": "AHCI",
+    "media": "MLC",
+    "blocksize": 4096,
+    "rpm": 0
+  }
+]

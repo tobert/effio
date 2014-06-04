@@ -26,6 +26,7 @@ import (
 type Test struct {
 	Name        string      // name to be used in tests, files, etc.
 	Dir         string      // directory for writing configs, logs, etc.
+	FioTestName string      // name of the fio test (without the device name)
 	FioArgs     []string    // the arguments to the fio command for the test
 	FioFile     string      // generated fio config file name
 	FioJson     string      // generated fio json output file name
@@ -110,6 +111,7 @@ func (suite *Suite) Populate(dl Devices, ftl FioConfTmpls) {
 			test := Test{
 				Name:        testName,
 				Dir:         testDir,
+				FioTestName: tp.Name,
 				FioArgs:     args,
 				FioFile:     "config.fio",
 				FioJson:     "output.json",

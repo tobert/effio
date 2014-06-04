@@ -16,9 +16,8 @@ import (
 // the input is ints but plotinum uses float64 so might as well
 // start there and avoid the type conversions later
 type LatRec struct {
-	time float64
-	perf float64
-	bsz  int
+	time float64 // time offset from beginning of fio run
+	perf float64 // latency value
 }
 
 type LatRecs []LatRec
@@ -37,7 +36,6 @@ func LoadCSV(filename string) LatRecs {
 
 	records := make(LatRecs, 0)
 	var time, perf float64
-	var bsz int
 	bfd := bufio.NewReader(fd)
 	var lno int = 0
 	for {
@@ -52,6 +50,10 @@ func LoadCSV(filename string) LatRecs {
 
 		// fio always uses ", " instead of "," as far as I can tell
 		r := strings.SplitN(string(line), ", ", 4)
+		// probably an impartial record at the end of the file
+		if len(r) < 4 || r[0] == "" || r[1] == "" {
+			continue
+		}
 
 		time, err = strconv.ParseFloat(r[0], 64)
 		if err != nil {
@@ -61,12 +63,9 @@ func LoadCSV(filename string) LatRecs {
 		if err != nil {
 			log.Fatalf("Parsing perf integer failed in file '%s' at line %d: %s", filename, lno, err)
 		}
-		bsz, err = strconv.Atoi(r[3])
-		if err != nil {
-			log.Fatalf("Parsing block size integer failed in file '%s' at line %d: %s", filename, lno, err)
-		}
+		// r[2:3] are unused, 2 is reserved, 3 is block size
 
-		lr := LatRec{time, perf, bsz}
+		lr := LatRec{time, perf}
 		records = append(records, lr)
 	}
 	log.Printf("Done parsing file '%s'.\n", filename)
@@ -116,7 +115,7 @@ func (lrs LatRecs) Histogram(sz int) (out LatRecs) {
 
 		if count == bktsz {
 			val := total / float64(count)
-			out = append(out, LatRec{time, val, v.bsz})
+			out = append(out, LatRec{time, val})
 			count = 0
 			continue
 		}

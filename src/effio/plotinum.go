@@ -11,7 +11,7 @@ import (
 	"path"
 )
 
-func (suite *Suite) Graph(spath string) {
+func (suite *Suite) Graph(spath string, outdir string) {
 	wd, err := os.Getwd()
 	if err != nil {
 		log.Fatalf("Could not get working directory: %s\n", err)

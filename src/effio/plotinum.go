@@ -26,15 +26,6 @@ func (suite *Suite) Graph(suite_path string, outdir string) {
 	}
 }
 
-// Returns a fully-qualified path to the lat_lat.log CSV file
-func (test *Test) LatLogPath(suite_path string) string {
-	tpath := path.Join(suite_path, test.Dir)
-	// TODO: check validity with stat
-
-	// fio insists on adding the _lat.log and I can't find an option to disable it
-	return path.Join(tpath, fmt.Sprintf("%s_lat.log", test.FioLatLog))
-}
-
 // draws a bar graph displaying the sizes of the lat_lat.log files across
 // all tests
 // TODO: figure out how to make the bar width respond to the graph width

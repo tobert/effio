@@ -17,10 +17,12 @@ randrepeat=0
 size=100g
 directory={{ .Device.Mountpoint }}
 numjobs=1
+unlink=1
+disable_lat=0
+disable_clat=1
+disable_slat=1
 
 [{{ .Name }}]
 description="random {{ .Device.Blocksize }}b 75/25 read/write latency, 1 job"
-write_bw_log={{ .FioBWLog }}
 write_lat_log={{ .FioLatLog }}
-write_iops_log={{ .FioIopsLog }}
 

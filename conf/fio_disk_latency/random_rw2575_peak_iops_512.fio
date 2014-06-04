@@ -14,13 +14,15 @@ ramp_time=5
 time_based=1
 runtime=600s
 randrepeat=0
-size=100g
+size=25g
 directory={{ .Device.Mountpoint }}
 numjobs=4
+unlink=1
+disable_lat=0
+disable_clat=1
+disable_slat=1
 
 [{{ .Name }}]
 description="random {{ .Device.Blocksize }}b 25/75 read/write peak iops, 4 jobs"
-write_bw_log={{ .FioBWLog }}
 write_lat_log={{ .FioLatLog }}
-write_iops_log={{ .FioIopsLog }}
 

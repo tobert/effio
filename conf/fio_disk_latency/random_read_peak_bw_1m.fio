@@ -15,10 +15,12 @@ randrepeat=0
 size=100g
 directory={{ .Device.Mountpoint }}
 numjobs=1
+unlink=1
+disable_lat=0
+disable_clat=1
+disable_slat=1
 
 [{{ .Name }}]
 description="random 1M read peak bandwidth, 1 job"
-write_bw_log={{ .FioBWLog }}
 write_lat_log={{ .FioLatLog }}
-write_iops_log={{ .FioIopsLog }}
 

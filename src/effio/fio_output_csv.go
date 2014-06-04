@@ -30,7 +30,8 @@ time, perf, ??, block
 func LoadCSV(filename string) LatRecs {
 	fd, err := os.Open(filename)
 	if err != nil {
-		log.Fatalf("Failed to open file '%s' for read: %s\n", filename, err)
+		log.Printf("Failed to open file '%s' for read: %s\n", filename, err)
+		return LatRecs{}
 	}
 	defer fd.Close()
 

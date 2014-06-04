@@ -43,8 +43,16 @@ func (cmd *Cmd) GraphSuite() {
 		}
 	}
 
+	// use full paths internally
+	// TODO: this currently only supports relative paths and will break on rooted paths
+	wd, err := os.Getwd()
+	if err != nil {
+		log.Fatalf("Could not get working directory: %s\n", err)
+	}
+	suite_dir := path.Join(wd, pathFlag)
+
 	// load up the suite
-	jsonPath := path.Join(pathFlag, idFlag, "suite.json")
+	jsonPath := path.Join(wd, pathFlag, idFlag, "suite.json")
 	_, err = os.Stat(jsonPath)
 	if err != nil {
 		log.Fatalf("Could not stat file '%s': %s\n", jsonPath, err)
@@ -86,10 +94,11 @@ func (cmd *Cmd) GraphSuite() {
 		for _, test := range s.Tests {
 			hash.Write([]byte(test.Name)) // docs: never returns an error
 		}
-		outdir = hex.EncodeToString(hash.Sum(nil))
-		log.Printf("output will be written to '%s'\n", path.Join(pathFlag, idFlag, outdir))
+		name := hex.EncodeToString(hash.Sum(nil))
+		outdir = path.Join(wd, pathFlag, idFlag, name)
+		log.Printf("output will be written to '%s'\n", outdir)
 	} else {
-		outdir = outFlag
+		outdir = path.Join(wd, pathFlag, idFlag, outFlag)
 	}
 
 	if listFlag {
@@ -99,5 +108,5 @@ func (cmd *Cmd) GraphSuite() {
 		return
 	}
 
-	s.Graph(pathFlag, outdir)
+	s.Graph(suite_dir, outdir)
 }

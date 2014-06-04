@@ -4,38 +4,39 @@ import (
 	"code.google.com/p/plotinum/plot"
 	"code.google.com/p/plotinum/plotter"
 	"code.google.com/p/plotinum/vg"
-	//	"code.google.com/p/plotinum/plotutil"
+	"code.google.com/p/plotinum/plotutil"
 	"fmt"
 	"log"
 	"os"
 	"path"
 )
 
-func (suite *Suite) Graph(spath string, outdir string) {
-	wd, err := os.Getwd()
-	if err != nil {
-		log.Fatalf("Could not get working directory: %s\n", err)
-	}
+// suite_path must be a fully-qualitifed path or Chdirs will fail and crash
+func (suite *Suite) Graph(suite_path string, outdir string) {
+	// load all data into memory
+	// will be rather large but probably OK on a 16GB machine
+	recs := make([]LatRecs, len(suite.Tests))
 
-	for _, test := range suite.Tests {
-		log.Printf("Graphing test %s ...\n", test.Name)
-		test.GraphAll(path.Join(wd, spath))
+	for i, test := range suite.Tests {
+		recs[i] = LoadCSV(test.LatLogPath(suite_path))
+		if len(recs[i]) < 200 {
+			log.Printf("Empty/truncated logfile. Skipping rendering of %s\n", test.Name)
+			continue
+		}
 	}
 }
 
-func (test *Test) GraphAll(spath string) {
-	tpath := path.Join(spath, test.Dir)
-	err := os.Chdir(tpath)
-	if err != nil {
-		log.Fatalf("Could not chdir to '%s': %s\n", tpath, err)
-	}
+// Returns a fully-qualified path to the lat_lat.log CSV file
+func (test *Test) LatLogPath(suite_path string) string {
+	tpath := path.Join(suite_path, test.Dir)
+	// TODO: check validity with stat
 
 	// fio insists on adding the _lat.log and I can't find an option to disable it
-	latlog := LoadCSV(fmt.Sprintf("%s_lat.log", test.FioLatLog))
-	if len(latlog) < 200 {
-		log.Printf("Empty/truncated logfile. Skipping rendering of %s\n", test.Name)
-		return
-	}
+	return path.Join(tpath, fmt.Sprintf("%s_lat.log", test.FioLatLog))
+}
+
+func (test *Test) GraphAll(suite_path string) {
+	latlog := LoadCSV(test.LatLogPath(suite_path))
 	// latlog is huge on fast devices, trim it down so plotinum doesn't freak out
 	//func (lrs LatRecs) Histogram(sz int) (out LatRecs) {
 	hgram := latlog.Histogram(200)

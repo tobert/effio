@@ -36,6 +36,7 @@ type Test struct {
 	CmdFile     string      // write the exact fio command used to this file
 	FioConfTmpl FioConfTmpl // template info struct
 	Device      Device      // device info struct
+	Suite       *Suite      // pointer back to the container suite
 }
 
 // a test suite has a global id that is also used as a directory name
@@ -81,6 +82,7 @@ func (suite *Suite) Run(spath string) {
 	}
 
 	for _, test := range suite.Tests {
+		log.Printf("Running test %s in directory %s ...\n", test.Name, test.Dir)
 		test.Run(path.Join(wd, spath))
 	}
 }
@@ -115,6 +117,7 @@ func (suite *Suite) Populate(dl Devices, ftl FioConfTmpls) {
 				CmdFile:     "run.sh",
 				FioConfTmpl: tp,
 				Device:      dev,
+				Suite:       suite,
 			}
 
 			suite.Tests = append(suite.Tests, test)

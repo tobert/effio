@@ -39,13 +39,16 @@ type Test struct {
 	Suite       *Suite      `json:"-"`
 }
 
+// has a sort interface impl near EOF, sorts by test.Name
+type Tests []Test
+
 // a test suite has a global id that is also used as a directory name
 type Suite struct {
 	Id        string
 	Created   time.Time // time the test was generated / run
 	EffioCmd  []string  // os.Args() of the effio command used to generate the suite
 	SuiteJson string
-	Tests     []Test
+	Tests     Tests
 }
 
 // NewSuite returns an initialized Suite with the given
@@ -273,4 +276,18 @@ func (test *Test) WriteCmdFile(basePath string) {
 		fioPath = "fio"
 	}
 	fmt.Fprintf(fd, "#!/bin/bash -x\n%s %s\n", fioPath, strings.Join(test.FioArgs, " "))
+}
+
+// implement the sort for Tests
+func (t Tests) Len() int {
+	return len(t)
+}
+
+func (t Tests) Swap(i, j int) {
+	t[i], t[j] = t[j], t[i]
+}
+
+// sort by test Name lexically
+func (t Tests) Less(i, j int) bool {
+	return t[i].Name < t[j].Name
 }

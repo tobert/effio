@@ -7,6 +7,7 @@ import (
 	"os"
 	"path"
 	"regexp"
+	"sort"
 )
 
 // -excl has higher priority than -incl so you can -incl and then
@@ -79,8 +80,8 @@ func (cmd *Cmd) GraphSuite() {
 
 	// if incl/excl are used and an 'out' name isn't specified, make one
 	// based on a hash of all names in the test so it's consistent and automatic
-	// TODO: should probably sort before hashing
 	if outFlag == "all" && (len(inclFlag) > 0 || len(exclFlag) > 0) {
+		sort.Sort(s.Tests) // sort to ensure the hash is as consistent as possible
 		hash := fnv.New64()
 		for _, test := range s.Tests {
 			hash.Write([]byte(test.Name)) // docs: never returns an error

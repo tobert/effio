@@ -36,7 +36,7 @@ type Test struct {
 	CmdFile     string      // write the exact fio command used to this file
 	FioConfTmpl FioConfTmpl // template info struct
 	Device      Device      // device info struct
-	Suite       *Suite      // pointer back to the container suite
+	Suite       *Suite      `json:"-"`
 }
 
 // a test suite has a global id that is also used as a directory name

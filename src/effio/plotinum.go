@@ -12,8 +12,14 @@ import (
 )
 
 func (suite *Suite) Graph(spath string) {
+	wd, err := os.Getwd()
+	if err != nil {
+		log.Fatalf("Could not get working directory: %s\n", err)
+	}
+
 	for _, test := range suite.Tests {
-		test.GraphAll(spath)
+		log.Printf("Graphing test %s ...\n", test.Name)
+		test.GraphAll(path.Join(wd, spath))
 	}
 }
 
@@ -29,9 +35,6 @@ func (test *Test) GraphAll(spath string) {
 	// latlog is huge on fast devices, trim it down so plotinum doesn't freak out
 	//func (lrs LatRecs) Histogram(sz int) (out LatRecs) {
 	hgram := latlog.Histogram(200)
-	for i, v := range hgram {
-		log.Printf("hgram[%d] = [%f, %f]\n", i, v.time, v.perf)
-	}
 	test.LineGraph(hgram, "Time", "Latency (usec)")
 }
 

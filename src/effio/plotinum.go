@@ -32,6 +32,10 @@ func (test *Test) GraphAll(spath string) {
 
 	// fio insists on adding the _lat.log and I can't find an option to disable it
 	latlog := LoadCSV(fmt.Sprintf("%s_lat.log", test.FioLatLog))
+	if len(latlog) < 200 {
+		log.Printf("Empty/truncated logfile. Skipping rendering of %s\n", test.Name)
+		return
+	}
 	// latlog is huge on fast devices, trim it down so plotinum doesn't freak out
 	//func (lrs LatRecs) Histogram(sz int) (out LatRecs) {
 	hgram := latlog.Histogram(200)

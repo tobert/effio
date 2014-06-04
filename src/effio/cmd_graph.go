@@ -108,5 +108,6 @@ func (cmd *Cmd) GraphSuite() {
 		return
 	}
 
-	s.Graph(suite_dir, outdir)
+	s.GraphSizes(suite_dir, outdir)
+	//s.Graph(suite_dir, outdir)
 }

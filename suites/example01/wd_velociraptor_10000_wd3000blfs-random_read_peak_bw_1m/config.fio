@@ -1,0 +1,26 @@
+[global]
+rw=randread
+blocksize=1M
+ioengine=libaio
+norandommap=1
+direct=1
+iodepth=32
+iodepth_batch=16
+iodepth_batch_complete=16
+group_reporting=1
+ramp_time=5
+time_based=1
+runtime=600s
+randrepeat=0
+size=100g
+directory=/mnt/effio/wd_velociraptor_10000_wd3000blfs
+numjobs=1
+unlink=1
+disable_lat=0
+disable_clat=1
+disable_slat=1
+
+[wd_velociraptor_10000_wd3000blfs-random_read_peak_bw_1m]
+description="random 1M read peak bandwidth, 1 job"
+write_lat_log=lat
+

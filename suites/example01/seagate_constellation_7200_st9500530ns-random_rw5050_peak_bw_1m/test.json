@@ -1,0 +1,38 @@
+{
+  "Name": "seagate_constellation_7200_st9500530ns-random_rw5050_peak_bw_1m",
+  "Dir": "example01/seagate_constellation_7200_st9500530ns-random_rw5050_peak_bw_1m",
+  "FioArgs": [
+    "--output-format=json",
+    "--output=output.json",
+    "config.fio"
+  ],
+  "FioFile": "config.fio",
+  "FioJson": "output.json",
+  "FioBWLog": "bw",
+  "FioLatLog": "lat",
+  "FioIopsLog": "iops",
+  "TestJson": "test.json",
+  "CmdFile": "run.sh",
+  "FioConfTmpl": {
+    "Filename": "/home/atobey/src/effio/conf/fio_disk_latency/random_rw5050_peak_bw_1m.fio",
+    "Name": "random_rw5050_peak_bw_1m"
+  },
+  "Device": {
+    "name": "seagate_constellation_7200_st9500530ns",
+    "notes": "root drive in btrfs RAID1, btrfs subvolume create /mnt/effio/root_btrfs_raid1",
+    "ignore": false,
+    "device": "/dev/disk/by-id/wwn-0x5000c50026c5694e-part1",
+    "mountpoint": "/mnt/effio/root_btrfs_raid1",
+    "filesystem": "ext4",
+    "brand": "Seagate",
+    "series": "ST9500530NS",
+    "datasheet": "http://www.seagate.com/files/docs/pdf/datasheet/disc/constellation-ds1678.3-1007us.pdf",
+    "capacity": 500107862016,
+    "rotational": true,
+    "transport": "",
+    "hba": "AHCI",
+    "media": "Iron",
+    "blocksize": 512,
+    "rpm": 7200
+  }
+}

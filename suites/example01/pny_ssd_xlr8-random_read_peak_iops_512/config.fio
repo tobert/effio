@@ -1,0 +1,26 @@
+[global]
+rw=randread
+blocksize=512
+ioengine=libaio
+norandommap=1
+direct=1
+iodepth=32
+iodepth_batch=16
+iodepth_batch_complete=16
+group_reporting=1
+ramp_time=5
+time_based=1
+runtime=600s
+randrepeat=0
+size=25g
+directory=/mnt/effio/pny_ssd_xlr8
+numjobs=4
+unlink=1
+disable_lat=0
+disable_clat=1
+disable_slat=1
+
+[pny_ssd_xlr8-random_read_peak_iops_512]
+description="random 512b read peak IOPS, 4 jobs"
+write_lat_log=lat
+

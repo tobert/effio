@@ -1,0 +1,38 @@
+{
+  "Name": "samsung_ssd_840_pro-random_rw5050_peak_iops_512",
+  "Dir": "example01/samsung_ssd_840_pro-random_rw5050_peak_iops_512",
+  "FioArgs": [
+    "--output-format=json",
+    "--output=output.json",
+    "config.fio"
+  ],
+  "FioFile": "config.fio",
+  "FioJson": "output.json",
+  "FioBWLog": "bw",
+  "FioLatLog": "lat",
+  "FioIopsLog": "iops",
+  "TestJson": "test.json",
+  "CmdFile": "run.sh",
+  "FioConfTmpl": {
+    "Filename": "/home/atobey/src/effio/conf/fio_disk_latency/random_rw5050_peak_iops_512.fio",
+    "Name": "random_rw5050_peak_iops_512"
+  },
+  "Device": {
+    "name": "samsung_ssd_840_pro",
+    "notes": "",
+    "ignore": false,
+    "device": "/dev/disk/by-id/wwn-0x50025385a012e8d5-part1",
+    "mountpoint": "/mnt/effio/samsung_ssd_840_pro",
+    "filesystem": "ext4",
+    "brand": "Samsung",
+    "series": "840 Pro",
+    "datasheet": "http://www.samsung.com/global/business/semiconductor/Downloads/DataSheet-Samsung_SSD_840_PRO_Rev12.pdf",
+    "capacity": 128035676160,
+    "rotational": false,
+    "transport": "",
+    "hba": "SAS",
+    "media": "MLC",
+    "blocksize": 4096,
+    "rpm": 0
+  }
+}

@@ -1,0 +1,38 @@
+{
+  "Name": "pny_ssd_xlr8-random_rw5050_peak_bw_1m",
+  "Dir": "example01/pny_ssd_xlr8-random_rw5050_peak_bw_1m",
+  "FioArgs": [
+    "--output-format=json",
+    "--output=output.json",
+    "config.fio"
+  ],
+  "FioFile": "config.fio",
+  "FioJson": "output.json",
+  "FioBWLog": "bw",
+  "FioLatLog": "lat",
+  "FioIopsLog": "iops",
+  "TestJson": "test.json",
+  "CmdFile": "run.sh",
+  "FioConfTmpl": {
+    "Filename": "/home/atobey/src/effio/conf/fio_disk_latency/random_rw5050_peak_bw_1m.fio",
+    "Name": "random_rw5050_peak_bw_1m"
+  },
+  "Device": {
+    "name": "pny_ssd_xlr8",
+    "notes": "",
+    "ignore": false,
+    "device": "/dev/disk/by-id/wwn-0x5f8db4c142590345-part1",
+    "mountpoint": "/mnt/effio/pny_ssd_xlr8",
+    "filesystem": "ext4",
+    "brand": "PNY",
+    "series": "SSD9SC240GCDA-PB",
+    "datasheet": "",
+    "capacity": 240057409536,
+    "rotational": false,
+    "transport": "",
+    "hba": "AHCI",
+    "media": "MLC",
+    "blocksize": 512,
+    "rpm": 0
+  }
+}

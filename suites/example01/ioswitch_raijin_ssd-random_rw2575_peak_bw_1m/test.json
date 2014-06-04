@@ -1,0 +1,38 @@
+{
+  "Name": "ioswitch_raijin_ssd-random_rw2575_peak_bw_1m",
+  "Dir": "example01/ioswitch_raijin_ssd-random_rw2575_peak_bw_1m",
+  "FioArgs": [
+    "--output-format=json",
+    "--output=output.json",
+    "config.fio"
+  ],
+  "FioFile": "config.fio",
+  "FioJson": "output.json",
+  "FioBWLog": "bw",
+  "FioLatLog": "lat",
+  "FioIopsLog": "iops",
+  "TestJson": "test.json",
+  "CmdFile": "run.sh",
+  "FioConfTmpl": {
+    "Filename": "/home/atobey/src/effio/conf/fio_disk_latency/random_rw2575_peak_bw_1m.fio",
+    "Name": "random_rw2575_peak_bw_1m"
+  },
+  "Device": {
+    "name": "ioswitch_raijin_ssd",
+    "notes": "",
+    "ignore": false,
+    "device": "/dev/disk/by-id/ata-MRDPL7A256GTUN8C00_X256TU1E020024-part1",
+    "mountpoint": "/mnt/effio/ioswitch_raijin_ssd",
+    "filesystem": "ext4",
+    "brand": "ioSwitch",
+    "series": "MRDPL7A256GTUN8C",
+    "datasheet": "http://io-switch.com/store/product/raijin/",
+    "capacity": 256060514304,
+    "rotational": false,
+    "transport": "",
+    "hba": "AHCI",
+    "media": "MLC",
+    "blocksize": 4096,
+    "rpm": 0
+  }
+}

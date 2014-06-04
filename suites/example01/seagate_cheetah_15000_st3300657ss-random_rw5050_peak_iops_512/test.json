@@ -1,0 +1,38 @@
+{
+  "Name": "seagate_cheetah_15000_st3300657ss-random_rw5050_peak_iops_512",
+  "Dir": "example01/seagate_cheetah_15000_st3300657ss-random_rw5050_peak_iops_512",
+  "FioArgs": [
+    "--output-format=json",
+    "--output=output.json",
+    "config.fio"
+  ],
+  "FioFile": "config.fio",
+  "FioJson": "output.json",
+  "FioBWLog": "bw",
+  "FioLatLog": "lat",
+  "FioIopsLog": "iops",
+  "TestJson": "test.json",
+  "CmdFile": "run.sh",
+  "FioConfTmpl": {
+    "Filename": "/home/atobey/src/effio/conf/fio_disk_latency/random_rw5050_peak_iops_512.fio",
+    "Name": "random_rw5050_peak_iops_512"
+  },
+  "Device": {
+    "name": "seagate_cheetah_15000_st3300657ss",
+    "notes": "",
+    "ignore": false,
+    "device": "/dev/disk/by-id/wwn-0x5000c50028b9d0db-part1",
+    "mountpoint": "/mnt/effio/seagate_cheetah_15000_st3300657ss",
+    "filesystem": "ext4",
+    "brand": "Seagate",
+    "series": "ST3300657SS",
+    "datasheet": "http://www.seagate.com/files/docs/pdf/datasheet/disc/cheetah-15k.7-ds1677.3-1007us.pdf",
+    "capacity": 300000000000,
+    "rotational": true,
+    "transport": "",
+    "hba": "SAS",
+    "media": "Iron",
+    "blocksize": 2048,
+    "rpm": 15000
+  }
+}

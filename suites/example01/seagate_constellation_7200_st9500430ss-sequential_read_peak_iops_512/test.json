@@ -1,0 +1,38 @@
+{
+  "Name": "seagate_constellation_7200_st9500430ss-sequential_read_peak_iops_512",
+  "Dir": "example01/seagate_constellation_7200_st9500430ss-sequential_read_peak_iops_512",
+  "FioArgs": [
+    "--output-format=json",
+    "--output=output.json",
+    "config.fio"
+  ],
+  "FioFile": "config.fio",
+  "FioJson": "output.json",
+  "FioBWLog": "bw",
+  "FioLatLog": "lat",
+  "FioIopsLog": "iops",
+  "TestJson": "test.json",
+  "CmdFile": "run.sh",
+  "FioConfTmpl": {
+    "Filename": "/home/atobey/src/effio/conf/fio_disk_latency/sequential_read_peak_iops_512.fio",
+    "Name": "sequential_read_peak_iops_512"
+  },
+  "Device": {
+    "name": "seagate_constellation_7200_st9500430ss",
+    "notes": "",
+    "ignore": false,
+    "device": "/dev/disk/by-id/wwn-0x5000c5000d7ff53f-part1",
+    "mountpoint": "/mnt/effio/seagate_constellation_7200_st9500430ss",
+    "filesystem": "ext4",
+    "brand": "Seagate",
+    "series": "ST9500430SS",
+    "datasheet": "http://www.seagate.com/files/docs/pdf/datasheet/disc/constellation-ds1678.3-1007us.pdf",
+    "capacity": 500107862016,
+    "rotational": true,
+    "transport": "",
+    "hba": "SAS",
+    "media": "Iron",
+    "blocksize": 4096,
+    "rpm": 7200
+  }
+}

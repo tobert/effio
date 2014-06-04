@@ -1,0 +1,38 @@
+{
+  "Name": "fusionio_iodriveii-sequential_read_peak_bw_1mb",
+  "Dir": "example01/fusionio_iodriveii-sequential_read_peak_bw_1mb",
+  "FioArgs": [
+    "--output-format=json",
+    "--output=output.json",
+    "config.fio"
+  ],
+  "FioFile": "config.fio",
+  "FioJson": "output.json",
+  "FioBWLog": "bw",
+  "FioLatLog": "lat",
+  "FioIopsLog": "iops",
+  "TestJson": "test.json",
+  "CmdFile": "run.sh",
+  "FioConfTmpl": {
+    "Filename": "/home/atobey/src/effio/conf/fio_disk_latency/sequential_read_peak_bw_1mb.fio",
+    "Name": "sequential_read_peak_bw_1mb"
+  },
+  "Device": {
+    "name": "fusionio_iodriveii",
+    "notes": "",
+    "ignore": false,
+    "device": "/dev/fioa1",
+    "mountpoint": "/mnt/effio/fusionio_iodriveii",
+    "filesystem": "ext4",
+    "brand": "FusionIO",
+    "series": "ioDrive II",
+    "datasheet": "http://www.fusionio.com/load/-media-/2rezss/docsLibrary/FIO_DS_ioDrive2.pdf",
+    "capacity": 128035676160,
+    "rotational": false,
+    "transport": "",
+    "hba": "ioMemory",
+    "media": "MLC",
+    "blocksize": 4096,
+    "rpm": 0
+  }
+}

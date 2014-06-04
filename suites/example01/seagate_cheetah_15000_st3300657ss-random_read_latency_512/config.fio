@@ -1,0 +1,26 @@
+[global]
+rw=randread
+blocksize=2048
+ioengine=sync
+norandommap=1
+direct=1
+iodepth=1
+iodepth_batch=1
+iodepth_batch_complete=1
+group_reporting=1
+ramp_time=5
+time_based=1
+runtime=600s
+randrepeat=0
+size=25g
+directory=/mnt/effio/seagate_cheetah_15000_st3300657ss
+numjobs=1
+unlink=1
+disable_lat=0
+disable_clat=1
+disable_slat=1
+
+[seagate_cheetah_15000_st3300657ss-random_read_latency_512]
+description="random 2048b read latency, 1 job"
+write_lat_log=lat
+

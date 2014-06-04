@@ -1,0 +1,38 @@
+{
+  "Name": "fusionio_iodriveii-random_rw5050_peak_bw_1m",
+  "Dir": "example01/fusionio_iodriveii-random_rw5050_peak_bw_1m",
+  "FioArgs": [
+    "--output-format=json",
+    "--output=output.json",
+    "config.fio"
+  ],
+  "FioFile": "config.fio",
+  "FioJson": "output.json",
+  "FioBWLog": "bw",
+  "FioLatLog": "lat",
+  "FioIopsLog": "iops",
+  "TestJson": "test.json",
+  "CmdFile": "run.sh",
+  "FioConfTmpl": {
+    "Filename": "/home/atobey/src/effio/conf/fio_disk_latency/random_rw5050_peak_bw_1m.fio",
+    "Name": "random_rw5050_peak_bw_1m"
+  },
+  "Device": {
+    "name": "fusionio_iodriveii",
+    "notes": "",
+    "ignore": false,
+    "device": "/dev/fioa1",
+    "mountpoint": "/mnt/effio/fusionio_iodriveii",
+    "filesystem": "ext4",
+    "brand": "FusionIO",
+    "series": "ioDrive II",
+    "datasheet": "http://www.fusionio.com/load/-media-/2rezss/docsLibrary/FIO_DS_ioDrive2.pdf",
+    "capacity": 128035676160,
+    "rotational": false,
+    "transport": "",
+    "hba": "ioMemory",
+    "media": "MLC",
+    "blocksize": 4096,
+    "rpm": 0
+  }
+}

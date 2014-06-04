@@ -1,0 +1,26 @@
+[global]
+rw=randwrite
+blocksize=512
+ioengine=sync
+norandommap=1
+direct=1
+iodepth=1
+iodepth_batch=1
+iodepth_batch_complete=1
+group_reporting=1
+ramp_time=5
+time_based=1
+runtime=600s
+randrepeat=0
+size=100g
+directory=/mnt/effio/pny_ssd_xlr8
+numjobs=1
+unlink=1
+disable_lat=0
+disable_clat=1
+disable_slat=1
+
+[pny_ssd_xlr8-random_write_latency_512]
+description="random 512b write latency, 1 job"
+write_lat_log=lat
+

@@ -1,0 +1,26 @@
+[global]
+rw=write
+blocksize=1M
+ioengine=libaio
+norandommap=1
+direct=1
+iodepth=32
+iodepth_batch=16
+iodepth_batch_complete=16
+group_reporting=1
+ramp_time=5
+time_based=1
+runtime=600s
+randrepeat=0
+size=25g
+directory=/mnt/effio/seagate_momentus_xt_sshd
+numjobs=4
+unlink=1
+disable_lat=0
+disable_clat=1
+disable_slat=1
+
+[seagate_momentus_xt_sshd-sequential_write_peak_bw_1mb]
+description="sequential 1MB write peak bandwidth, 4 jobs"
+write_lat_log=lat
+

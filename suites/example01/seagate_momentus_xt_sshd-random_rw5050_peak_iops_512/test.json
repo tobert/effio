@@ -1,0 +1,38 @@
+{
+  "Name": "seagate_momentus_xt_sshd-random_rw5050_peak_iops_512",
+  "Dir": "example01/seagate_momentus_xt_sshd-random_rw5050_peak_iops_512",
+  "FioArgs": [
+    "--output-format=json",
+    "--output=output.json",
+    "config.fio"
+  ],
+  "FioFile": "config.fio",
+  "FioJson": "output.json",
+  "FioBWLog": "bw",
+  "FioLatLog": "lat",
+  "FioIopsLog": "iops",
+  "TestJson": "test.json",
+  "CmdFile": "run.sh",
+  "FioConfTmpl": {
+    "Filename": "/home/atobey/src/effio/conf/fio_disk_latency/random_rw5050_peak_iops_512.fio",
+    "Name": "random_rw5050_peak_iops_512"
+  },
+  "Device": {
+    "name": "seagate_momentus_xt_sshd",
+    "notes": "8GB SSD, 500GB HDD",
+    "ignore": false,
+    "device": "/dev/disk/by-id/wwn-0x5000c5006e3f7663-part1",
+    "mountpoint": "/mnt/effio/seagate_momentus_xt_sshd",
+    "filesystem": "ext4",
+    "brand": "Seagate",
+    "series": "ST500LM000",
+    "datasheet": "http://www.seagate.com/staticfiles/docs/pdf/datasheet/disc/laptop-sshd-kit-ds-1784-4-1401us.pdf",
+    "capacity": 500107862016,
+    "rotational": true,
+    "transport": "",
+    "hba": "USB3",
+    "media": "Hybrid",
+    "blocksize": 4096,
+    "rpm": 5400
+  }
+}

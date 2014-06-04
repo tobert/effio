@@ -1,0 +1,26 @@
+[global]
+rw=randwrite
+blocksize=4096
+ioengine=libaio
+norandommap=1
+direct=1
+iodepth=32
+iodepth_batch=16
+iodepth_batch_complete=16
+group_reporting=1
+ramp_time=5
+time_based=1
+runtime=600s
+randrepeat=0
+size=25g
+directory=/mnt/effio/fusionio_iodriveii
+numjobs=4
+unlink=1
+disable_lat=0
+disable_clat=1
+disable_slat=1
+
+[fusionio_iodriveii-random_write_peak_iops_512]
+description="random 4096b write peak iops, 4 jobs"
+write_lat_log=lat
+

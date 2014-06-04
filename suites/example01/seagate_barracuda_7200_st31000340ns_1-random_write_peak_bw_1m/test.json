@@ -1,0 +1,38 @@
+{
+  "Name": "seagate_barracuda_7200_st31000340ns_1-random_write_peak_bw_1m",
+  "Dir": "example01/seagate_barracuda_7200_st31000340ns_1-random_write_peak_bw_1m",
+  "FioArgs": [
+    "--output-format=json",
+    "--output=output.json",
+    "config.fio"
+  ],
+  "FioFile": "config.fio",
+  "FioJson": "output.json",
+  "FioBWLog": "bw",
+  "FioLatLog": "lat",
+  "FioIopsLog": "iops",
+  "TestJson": "test.json",
+  "CmdFile": "run.sh",
+  "FioConfTmpl": {
+    "Filename": "/home/atobey/src/effio/conf/fio_disk_latency/random_write_peak_bw_1m.fio",
+    "Name": "random_write_peak_bw_1m"
+  },
+  "Device": {
+    "name": "seagate_barracuda_7200_st31000340ns_1",
+    "notes": "",
+    "ignore": false,
+    "device": "/dev/disk/by-id/wwn-0x5000c5001527e16f-part1",
+    "mountpoint": "/mnt/effio/seagate_barracuda_7200_st31000340ns_1",
+    "filesystem": "ext4",
+    "brand": "Seagate",
+    "series": "ST31000340NS",
+    "datasheet": "http://www.seagate.com/docs/pdf/datasheet/disc/ds_barracuda_es.pdf",
+    "capacity": 1000204886016,
+    "rotational": true,
+    "transport": "",
+    "hba": "AHCI",
+    "media": "Iron",
+    "blocksize": 512,
+    "rpm": 7200
+  }
+}

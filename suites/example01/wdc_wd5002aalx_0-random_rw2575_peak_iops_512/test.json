@@ -1,0 +1,38 @@
+{
+  "Name": "wdc_wd5002aalx_0-random_rw2575_peak_iops_512",
+  "Dir": "example01/wdc_wd5002aalx_0-random_rw2575_peak_iops_512",
+  "FioArgs": [
+    "--output-format=json",
+    "--output=output.json",
+    "config.fio"
+  ],
+  "FioFile": "config.fio",
+  "FioJson": "output.json",
+  "FioBWLog": "bw",
+  "FioLatLog": "lat",
+  "FioIopsLog": "iops",
+  "TestJson": "test.json",
+  "CmdFile": "run.sh",
+  "FioConfTmpl": {
+    "Filename": "/home/atobey/src/effio/conf/fio_disk_latency/random_rw2575_peak_iops_512.fio",
+    "Name": "random_rw2575_peak_iops_512"
+  },
+  "Device": {
+    "name": "wdc_wd5002aalx_0",
+    "notes": "in an eSATA dock",
+    "ignore": false,
+    "device": "/dev/disk/by-id/wwn-0x50014ee104015357-part1",
+    "mountpoint": "/mnt/effio/wdc_wd5002aalx_0",
+    "filesystem": "ext4",
+    "brand": "Western Digital",
+    "series": "WDC WD5002AALX",
+    "datasheet": "http://www.wdc.com/wdproducts/library/SpecSheet/ENG/2879-701276.pdf",
+    "capacity": 500107862016,
+    "rotational": true,
+    "transport": "",
+    "hba": "AHCI",
+    "media": "Iron",
+    "blocksize": 512,
+    "rpm": 7200
+  }
+}

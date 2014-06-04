@@ -1,0 +1,38 @@
+{
+  "Name": "wd_velociraptor_10000_wd3000blfs-random_read_peak_bw_1m",
+  "Dir": "example01/wd_velociraptor_10000_wd3000blfs-random_read_peak_bw_1m",
+  "FioArgs": [
+    "--output-format=json",
+    "--output=output.json",
+    "config.fio"
+  ],
+  "FioFile": "config.fio",
+  "FioJson": "output.json",
+  "FioBWLog": "bw",
+  "FioLatLog": "lat",
+  "FioIopsLog": "iops",
+  "TestJson": "test.json",
+  "CmdFile": "run.sh",
+  "FioConfTmpl": {
+    "Filename": "/home/atobey/src/effio/conf/fio_disk_latency/random_read_peak_bw_1m.fio",
+    "Name": "random_read_peak_bw_1m"
+  },
+  "Device": {
+    "name": "wd_velociraptor_10000_wd3000blfs",
+    "notes": "SAT",
+    "ignore": false,
+    "device": "/dev/disk/by-id/wwn-0x50014ee0014d66a4-part1",
+    "mountpoint": "/mnt/effio/wd_velociraptor_10000_wd3000blfs",
+    "filesystem": "ext4",
+    "brand": "Western Digital",
+    "series": "WDC WD3000BLFS-0",
+    "datasheet": "http://tobert.org/downloads/wd3000blfs.pdf",
+    "capacity": 300067970560,
+    "rotational": true,
+    "transport": "",
+    "hba": "SAS",
+    "media": "Iron",
+    "blocksize": 512,
+    "rpm": 10000
+  }
+}

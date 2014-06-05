@@ -67,6 +67,7 @@ func (suite *Suite) GraphAll(suite_path string, out_path string) {
 
 	for _, gg := range all {
 		for _, g := range gg.Groups {
+			g.dumpCSV()
 			g.scatterPlot()
 		}
 	}
@@ -164,6 +165,22 @@ func (g *Group) barFileSizes() {
 	p.X.Max = float64(count + 1)
 
 	g.saveGraph(p, "bar-log-size")
+}
+
+func (g *Group) dumpCSV() {
+	fname := fmt.Sprintf("data-%s-%s.csv", g.Grouping.Name, g.Name)
+	fpath := path.Join(g.Grouping.OutPath, fname)
+	fd, err := os.OpenFile(fpath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
+	if err != nil {
+		log.Fatalf("Could not open '%s' for write: %s\n", fpath, err)
+	}
+	defer fd.Close()
+
+	for _, test := range g.Tests {
+		for _, lr := range test.LatRecs {
+			fd.WriteString(fmt.Sprintf("%f,%f\n", lr.time, lr.perf))
+		}
+	}
 }
 
 // e.g. suites/-id/-out/scatter-by_dev-random-read-512b.jpg

@@ -4,8 +4,12 @@ package effio
 
 import (
 	"encoding/json"
+	"errors"
 	"io/ioutil"
 	"log"
+	"os"
+	"path"
+	"syscall"
 )
 
 type Device struct {
@@ -28,6 +32,28 @@ type Device struct {
 }
 
 type Devices []Device
+
+func (d *Device) IsMounted() (bool, error) {
+	dfi, err := os.Stat(d.Mountpoint)
+	if err != nil {
+		return false, err
+	}
+
+	pfi, err := os.Stat(path.Join(d.Mountpoint, ".."))
+	if err != nil {
+		return false, err
+	}
+
+	// get the underlying OS stat structure (breaking !unix portability)
+	dst := dfi.Sys().(*syscall.Stat_t)
+	pst := pfi.Sys().(*syscall.Stat_t)
+
+	if dst.Dev == pst.Dev {
+		return false, errors.New("mountpoint has same device number as parent directory")
+	} else {
+		return true, nil
+	}
+}
 
 // implement the sort interface
 func (devs Devices) Len() int {

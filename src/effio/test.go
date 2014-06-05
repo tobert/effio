@@ -39,6 +39,14 @@ type Tests []*Test
 func (test *Test) Run(spath string) {
 	tpath := path.Join(spath, test.Dir)
 
+	// make sure the mountpoint is a mountpoint
+	// this avoids accidentally benchmarking the root volume
+	// the easy way around this for existing mounts is to use bind mounts
+	if ok, err := test.Device.IsMounted(); !ok {
+		log.Fatalf("Device '%s' does not appear to be mounted on '%s': %s\n",
+			test.Device.Name, test.Device.Mountpoint, err)
+	}
+
 	err := os.Chdir(tpath)
 	if err != nil {
 		log.Fatalf("Could not chdir to '%s': %s\n", tpath, err)

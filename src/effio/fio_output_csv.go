@@ -73,6 +73,11 @@ func LoadCSV(filename string) LatRecs {
 		}
 		// r[2:3] are unused, 2 is reserved, 3 is block size
 
+		// check for broken data
+		if perf > 10e6 {
+			log.Fatalf("Failed.\nInvalid perf data in file '%s', too big! raw: '%s', float: '%f'\n", filename, r[1], perf)
+		}
+
 		lr := LatRec{time, perf}
 		records = append(records, lr)
 	}

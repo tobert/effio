@@ -6,6 +6,7 @@ package effio
 
 import (
 	"bufio"
+	"fmt"
 	"io"
 	"log"
 	"os"
@@ -28,9 +29,11 @@ time, perf, ??, block
 16, 205274624691, 0, 4096
 */
 func LoadCSV(filename string) LatRecs {
+	fmt.Printf("Parsing file: '%s' ... ", filename)
+
 	fd, err := os.Open(filename)
 	if err != nil {
-		log.Printf("Failed to open file '%s' for read: %s\n", filename, err)
+		fmt.Printf(" Failed.\nCould not open file '%s' for read: %s\n", filename, err)
 		return LatRecs{}
 	}
 	defer fd.Close()
@@ -45,9 +48,13 @@ func LoadCSV(filename string) LatRecs {
 			break
 		}
 		if err != nil {
-			log.Fatalf("Read from file '%s' failed: %s", filename, err)
+			log.Fatalf("\nRead from file '%s' failed: %s", filename, err)
 		}
 		lno++
+
+		if lno%10000 == 0 {
+			fmt.Printf(".")
+		}
 
 		// fio always uses ", " instead of "," as far as I can tell
 		r := strings.SplitN(string(line), ", ", 4)
@@ -58,18 +65,18 @@ func LoadCSV(filename string) LatRecs {
 
 		time, err = strconv.ParseFloat(r[0], 64)
 		if err != nil {
-			log.Fatalf("Parsing time integer failed in file '%s' at line %d: %s", filename, lno, err)
+			log.Fatalf("\nParsing time integer failed in file '%s' at line %d: %s", filename, lno, err)
 		}
 		perf, err = strconv.ParseFloat(r[1], 64)
 		if err != nil {
-			log.Fatalf("Parsing perf integer failed in file '%s' at line %d: %s", filename, lno, err)
+			log.Fatalf("\nParsing perf integer failed in file '%s' at line %d: %s", filename, lno, err)
 		}
 		// r[2:3] are unused, 2 is reserved, 3 is block size
 
 		lr := LatRec{time, perf}
 		records = append(records, lr)
 	}
-	log.Printf("Done parsing file '%s'.\n", filename)
+	fmt.Println(" Done.")
 
 	return records
 }

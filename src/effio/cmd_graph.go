@@ -78,6 +78,13 @@ func (cmd *Cmd) GraphSuite() {
 			keep = false
 		}
 
+		// finally, make sure the test has actually run/succeeded
+		// this allows for graphing partially executed / crashed suites
+		if test.FioJsonSize(suite_dir) == 0 {
+			log.Printf("%s is missing or empty, skipping test '%s'", test.FioJson, test.Name)
+			keep = false
+		}
+
 		if keep {
 			tests = append(tests, test)
 		}

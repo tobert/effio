@@ -42,10 +42,9 @@ func (suite *Suite) GraphAll(suite_path string, out_path string) {
 		by_tst.AppendGroup(test.Name, test)             // ends up 1:1 name => [t1]
 	}
 
-	// generate a file size graph for every group
+	// generate a latency logfile size graph for every group
 	for _, gg := range all {
 		for _, g := range gg.Groups {
-			fmt.Printf("Group has %d tests.\n", len(g.Tests))
 			g.barFileSizes()
 		}
 	}
@@ -54,7 +53,16 @@ func (suite *Suite) GraphAll(suite_path string, out_path string) {
 	// will be rather large but probably OK on a 16GB machine
 	for _, test := range suite.Tests {
 		// LatRec implements the plotinum interfaces Valuer, etc. and can be used directly
-		test.LatRecs = LoadCSV(test.LatLogPath(suite_path))
+		recs := LoadCSV(test.LatLogPath(suite_path))
+
+		// but plotinum chokes on huge files so reduce those down if they're over 1e5 entries
+		// TODO: this could be a runtime flag, since plotinum does finish with huge sample
+		// sizes but it takes 5-10 minutes per graph at 8e6 samples.
+		if len(recs) > 1000 {
+			test.LatRecs = recs.Histogram(1000)
+		} else {
+			test.LatRecs = recs
+		}
 	}
 
 	for _, gg := range all {
@@ -96,6 +104,8 @@ func (g *Group) scatterPlot() {
 			log.Fatalf("Failed to create new scatter plot for test %s: %s\n", test.Name, err)
 		}
 		sp.GlyphStyle.Color = plotutil.Color(i)
+		p.Add(sp)
+		p.Legend.Add(test.Name, sp)
 	}
 
 	g.saveGraph(p, "scatter")
@@ -105,7 +115,6 @@ func (g *Group) scatterPlot() {
 // all tests
 // TODO: figure out how to make the bar width respond to the graph width
 func (g *Group) barFileSizes() {
-	fmt.Printf("%d tests in group\n", len(g.Tests))
 	sizes := make([]int64, len(g.Tests))
 	for i, test := range g.Tests {
 		fi, err := os.Stat(test.LatLogPath(g.Grouping.SuitePath))

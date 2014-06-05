@@ -66,11 +66,8 @@ func (suite *Suite) Run(spath string, rerun bool) {
 		// rerun = true means all tests get re-run
 		// when false, only tests with missing or empty output.json get run
 		if !rerun {
-			fi, err := os.Stat(path.Join(spath, test.Dir, test.FioJson))
-			if err == nil {
-				if fi.Size() > 0 {
-					continue
-				}
+			if test.FioJsonSize(spath) > 0 {
+				continue
 			}
 		}
 

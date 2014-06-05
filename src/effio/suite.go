@@ -56,13 +56,24 @@ func LoadSuiteJson(spath string) (suite Suite) {
 // Run the whole suite one at a time letting fio write its output into
 // the suite directories. Repeated runs will overwrite files; behavior
 // is dependent on what fio does with existing files for now.
-func (suite *Suite) Run(spath string) {
+func (suite *Suite) Run(spath string, rerun bool) {
 	wd, err := os.Getwd()
 	if err != nil {
 		log.Fatalf("Could not get working directory: %s\n", err)
 	}
 
 	for _, test := range suite.Tests {
+		// rerun = true means all tests get re-run
+		// when false, only tests with missing or empty output.json get run
+		if !rerun {
+			fi, err := os.Stat(path.Join(spath, test.Dir, test.FioJson))
+			if err == nil {
+				if fi.Size() > 0 {
+					continue
+				}
+			}
+		}
+
 		log.Printf("Running test %s in directory %s ...\n", test.Name, test.Dir)
 		test.Run(path.Join(wd, spath))
 	}

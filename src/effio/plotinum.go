@@ -49,16 +49,17 @@ func (suite *Suite) GraphAll(suite_path string, out_path string) {
 			g.barFileSizes()
 		}
 	}
-	return // placeholder: remove after making use of latstats (which take forever to load)
 
 	// load all data into memory
 	// will be rather large but probably OK on a 16GB machine
 	for _, test := range suite.Tests {
 		// LatRec implements the plotinum interfaces Valuer, etc. and can be used directly
 		test.LatRecs = LoadCSV(test.LatLogPath(suite_path))
-		if len(test.LatRecs) < 200 {
-			log.Printf("Empty/truncated logfile. Skipping rendering of %s\n", test.Name)
-			continue
+	}
+
+	for _, gg := range all {
+		for _, g := range gg.Groups {
+			g.scatterPlot()
 		}
 	}
 }
@@ -76,14 +77,14 @@ func (gg *Grouping) AppendGroup(key string, test *Test) {
 	}
 }
 
-func (g *Group) scatterPlot(group string) {
+func (g *Group) scatterPlot() {
 	p, err := plot.New()
 	if err != nil {
 		log.Fatalf("Error creating new plot: %s\n", err)
 	}
 
 	// TODO: human names for test groups
-	p.Title.Text = fmt.Sprintf("Latency Distribution:%s", group)
+	p.Title.Text = fmt.Sprintf("Latency Distribution: %s", g.Name)
 	p.X.Label.Text = "Time Offset"
 	p.Y.Label.Text = "Latency (usec)"
 	p.Add(plotter.NewGrid())

@@ -34,7 +34,7 @@ type Suite struct {
 func NewSuite(id string) Suite {
 	now := time.Now()
 	fname := path.Join(id, "suite.json")
-	return Suite{id, now, os.Args, fname, []Test{}}
+	return Suite{id, now, os.Args, fname, Tests{}}
 }
 
 // LoadSuiteJson loads a suite from JSON. Argument is a path to a
@@ -102,7 +102,7 @@ func (suite *Suite) Populate(dl Devices, ftl FioConfTmpls) {
 				Suite:       suite,
 			}
 
-			suite.Tests = append(suite.Tests, test)
+			suite.Tests = append(suite.Tests, &test)
 		}
 	}
 }

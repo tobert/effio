@@ -27,11 +27,14 @@ type Test struct {
 	CmdFile     string      // write the exact fio command used to this file
 	FioConfTmpl FioConfTmpl // template info struct
 	Device      Device      // device info struct
-	Suite       *Suite      `json:"-"`
+	// allow attaching raw data to a test, potentially huge, don't serialize
+	LatRecs LatRecs `json:"-"`
+	// attach the suite to the test, creates a cycle, don't serialize
+	Suite *Suite `json:"-"`
 }
 
 // has a sort interface impl near EOF, sorts by test.Name
-type Tests []Test
+type Tests []*Test
 
 func (test *Test) Run(spath string) {
 	tpath := path.Join(spath, test.Dir)

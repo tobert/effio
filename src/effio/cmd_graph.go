@@ -61,7 +61,7 @@ func (cmd *Cmd) GraphSuite() {
 
 	// filter out unwanted tests from s.Tests
 	// could be more clever here but KISS
-	var tests []Test
+	var tests Tests
 	for _, test := range s.Tests {
 		// when no -incl is specified, all tests are included by default
 		keep := true
@@ -108,6 +108,5 @@ func (cmd *Cmd) GraphSuite() {
 		return
 	}
 
-	s.GraphSizes(suite_dir, outdir)
-	//s.Graph(suite_dir, outdir)
+	s.GraphAll(suite_dir, outdir)
 }

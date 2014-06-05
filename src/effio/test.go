@@ -147,10 +147,28 @@ func (test *Test) WriteCmdFile(basePath string) {
 // Returns a fully-qualified path to the lat_lat.log CSV file
 func (test *Test) LatLogPath(suite_path string) string {
 	tpath := path.Join(suite_path, test.Dir)
-	// TODO: check validity with stat
 
 	// fio insists on adding the _lat.log and I can't find an option to disable it
 	return path.Join(tpath, fmt.Sprintf("%s_lat.log", test.FioLatLog))
+}
+
+// get the size of the latency log, return 0 on errors (e.g. missing)
+func (test *Test) LatLogSize(suite_path string) int64 {
+	fi, err := os.Stat(test.LatLogPath(suite_path))
+	if err != nil {
+		return 0
+	}
+	return fi.Size()
+}
+
+// get the size of output.json, return 0 on errors (e.g. missing)
+func (test *Test) FioJsonSize(suite_path string) int64 {
+	fpath := path.Join(suite_path, test.Dir, test.FioJson)
+	fi, err := os.Stat(fpath)
+	if err != nil {
+		return 0
+	}
+	return fi.Size()
 }
 
 // implement the sort for Tests

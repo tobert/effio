@@ -55,7 +55,7 @@ func (suite *Suite) GraphAll(suite_path string, out_path string) {
 		// LatRec implements the plotinum interfaces Valuer, etc. and can be used directly
 		recs := LoadCSV(test.LatLogPath(suite_path))
 
-		// but plotinum chokes on huge files so reduce those down if they're over 1e5 entries
+		// plotinum is slow on huge files (~8e6 entries) so resample to a smaller size for now
 		// TODO: this could be a runtime flag, since plotinum does finish with huge sample
 		// sizes but it takes 5-10 minutes per graph at 8e6 samples.
 		if len(recs) > 1000 {

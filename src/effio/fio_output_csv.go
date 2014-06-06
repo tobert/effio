@@ -19,6 +19,8 @@ import (
 type LatRec struct {
 	time float64 // time offset from beginning of fio run
 	perf float64 // latency value
+	ddir uint8   // 0 = read, 1 = write, 2 = trim
+	bsz  uint16  // block size
 }
 
 type LatRecs []LatRec
@@ -40,6 +42,7 @@ func LoadCSV(filename string) LatRecs {
 
 	records := make(LatRecs, 0)
 	var time, perf float64
+	var ddir, bsz int
 	bfd := bufio.NewReader(fd)
 	var lno int = 0
 	for {
@@ -65,20 +68,22 @@ func LoadCSV(filename string) LatRecs {
 
 		time, err = strconv.ParseFloat(r[0], 64)
 		if err != nil {
-			log.Fatalf("\nParsing time integer failed in file '%s' at line %d: %s", filename, lno, err)
+			log.Fatalf("\nParsing field 0 failed in file '%s' at line %d: %s", filename, lno, err)
 		}
 		perf, err = strconv.ParseFloat(r[1], 64)
 		if err != nil {
-			log.Fatalf("\nParsing perf integer failed in file '%s' at line %d: %s", filename, lno, err)
+			log.Fatalf("\nParsing field 1 in file '%s' at line %d: %s", filename, lno, err)
 		}
-		// r[2:3] are unused, 2 is reserved, 3 is block size
-
-		// check for broken data
-		if perf > 10e6 {
-			log.Fatalf("Failed.\nInvalid perf data in file '%s', too big! raw: '%s', float: '%f'\n", filename, r[1], perf)
+		ddir, err = strconv.Atoi(r[2])
+		if err != nil {
+			log.Fatalf("\nParsing field 2 failed in file '%s' at line %d: %s", filename, lno, err)
+		}
+		bsz, err = strconv.Atoi(r[3])
+		if err != nil {
+			log.Fatalf("\nParsing field 3 failed in file '%s' at line %d: %s", filename, lno, err)
 		}
 
-		lr := LatRec{time, perf}
+		lr := LatRec{time, perf, uint8(ddir), uint16(bsz)}
 		records = append(records, lr)
 	}
 	fmt.Println(" Done.")
@@ -107,6 +112,8 @@ func (lrs LatRecs) Values(i int) (vals []float64) {
 }
 
 // reduces the number of data points to sz by taking the mean across buckets
+// TODO: this is kinda broken on bidirectional tests since it will merge the IOs
+// down to one direction blindly
 func (lrs LatRecs) Histogram(sz int) (out LatRecs) {
 	if sz > len(lrs) {
 		log.Fatalf("Error: Histogram(%d) is smaller than the dataset of length %d.", sz, len(lrs))
@@ -116,10 +123,14 @@ func (lrs LatRecs) Histogram(sz int) (out LatRecs) {
 	log.Printf("Bucket size for %d/%d is %d\n", len(lrs), sz, bktsz)
 
 	var total, time float64
+	var bsz uint16
+	var ddir uint8
 	var count int = 0
 	for _, v := range lrs {
 		if count == 0 {
 			time = v.time
+			bsz = v.bsz
+			ddir = v.ddir // wrong!
 			total = 0.0
 		}
 
@@ -128,7 +139,7 @@ func (lrs LatRecs) Histogram(sz int) (out LatRecs) {
 
 		if count == bktsz {
 			val := total / float64(count)
-			out = append(out, LatRec{time, val})
+			out = append(out, LatRec{time, val, ddir, bsz})
 			count = 0
 			continue
 		}

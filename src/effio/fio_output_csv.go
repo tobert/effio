@@ -25,11 +25,7 @@ type LatRec struct {
 
 type LatRecs []LatRec
 
-/*
-time, perf, ??, block
-3, 205274611861, 0, 4096
-16, 205274624691, 0, 4096
-*/
+// Loads the CSV output by fio into an LatRecs array of LatRec structs.
 func LoadCSV(filename string) LatRecs {
 	fmt.Printf("Parsing file: '%s' ... ", filename)
 
@@ -107,6 +103,52 @@ func (lrs LatRecs) Value(i int) float64 {
 func (lrs LatRecs) Values(i int) (vals []float64) {
 	for _, l := range lrs {
 		vals = append(vals, l.perf)
+	}
+	return
+}
+
+// m := lrs.Map(func (in LatRec) (out LatRec, err error) { return })
+func (lrs LatRecs) Map(fun func(LatRec)(LatRec, error)) (out LatRecs, err error) {
+	out = make(LatRecs, len(lrs))
+
+	for i, lr := range lrs {
+		out[i], err = fun(lr)
+		if err != nil {
+			return
+		}
+	}
+
+	return
+}
+
+// filtered := lrs.Filter(func (in LatRec) (bool, error) { return true, nil })
+func (lrs LatRecs) Filter(fun func(LatRec)(bool, error)) (out LatRecs, err error) {
+	out = make(LatRecs, len(lrs))
+
+	var c int
+	var ok bool
+	for _, lr := range lrs {
+		ok, err = fun(lr)
+		if err != nil {
+			return
+		}
+		if ok {
+			out[c] = lr
+			c++
+		}
+	}
+
+	return out[0:c], nil
+}
+
+// lr := lrs.Reduce(func (in LatRec, acc LatRec) (out LatRec, err error) { })
+func (lrs LatRecs) Reduce(fun func(LatRec, LatRec)(LatRec, error), init LatRec) (out LatRec, err error) {
+	out = init
+	for _, lr := range lrs {
+		out, err = fun(lr, out)
+		if err != nil {
+			return
+		}
 	}
 	return
 }

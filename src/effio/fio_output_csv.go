@@ -108,7 +108,7 @@ func (lrs LatRecs) Values(i int) (vals []float64) {
 }
 
 // m := lrs.Map(func (in LatRec) (out LatRec, err error) { return })
-func (lrs LatRecs) Map(fun func(LatRec)(LatRec, error)) (out LatRecs, err error) {
+func (lrs LatRecs) Map(fun func(LatRec) (LatRec, error)) (out LatRecs, err error) {
 	out = make(LatRecs, len(lrs))
 
 	for i, lr := range lrs {
@@ -122,7 +122,7 @@ func (lrs LatRecs) Map(fun func(LatRec)(LatRec, error)) (out LatRecs, err error)
 }
 
 // filtered := lrs.Filter(func (in LatRec) (bool, error) { return true, nil })
-func (lrs LatRecs) Filter(fun func(LatRec)(bool, error)) (out LatRecs, err error) {
+func (lrs LatRecs) Filter(fun func(LatRec) (bool, error)) (out LatRecs, err error) {
 	out = make(LatRecs, len(lrs))
 
 	var c int
@@ -142,7 +142,7 @@ func (lrs LatRecs) Filter(fun func(LatRec)(bool, error)) (out LatRecs, err error
 }
 
 // lr := lrs.Reduce(func (in LatRec, acc LatRec) (out LatRec, err error) { })
-func (lrs LatRecs) Reduce(fun func(LatRec, LatRec)(LatRec, error), init LatRec) (out LatRec, err error) {
+func (lrs LatRecs) Reduce(fun func(LatRec, LatRec) (LatRec, error), init LatRec) (out LatRec, err error) {
 	out = init
 	for _, lr := range lrs {
 		out, err = fun(lr, out)

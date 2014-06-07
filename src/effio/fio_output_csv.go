@@ -12,6 +12,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 )
 
 // the input is ints but plotinum uses float64 so might as well
@@ -36,8 +37,9 @@ func LoadCSV(filename string) LatRecs {
 	}
 	defer fd.Close()
 
+	started := time.Now()
 	records := make(LatRecs, 0)
-	var time, perf float64
+	var tm, perf float64
 	var ddir, bsz int
 	bfd := bufio.NewReader(fd)
 	var lno int = 0
@@ -62,7 +64,7 @@ func LoadCSV(filename string) LatRecs {
 			continue
 		}
 
-		time, err = strconv.ParseFloat(r[0], 64)
+		tm, err = strconv.ParseFloat(r[0], 64)
 		if err != nil {
 			log.Fatalf("\nParsing field 0 failed in file '%s' at line %d: %s", filename, lno, err)
 		}
@@ -79,10 +81,12 @@ func LoadCSV(filename string) LatRecs {
 			log.Fatalf("\nParsing field 3 failed in file '%s' at line %d: %s", filename, lno, err)
 		}
 
-		lr := LatRec{time, perf, uint8(ddir), uint16(bsz)}
+		lr := LatRec{tm, perf, uint8(ddir), uint16(bsz)}
 		records = append(records, lr)
 	}
-	fmt.Println(" Done.")
+
+	done := time.Now()
+	fmt.Printf(" Done.\nRows: %d Elapsed: %s\n", len(records), done.Sub(started).String())
 
 	return records
 }

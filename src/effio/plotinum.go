@@ -177,7 +177,7 @@ func (g *Group) dumpCSV() {
 
 	for _, test := range g.Tests {
 		for _, lr := range test.LatRecs {
-			fd.WriteString(fmt.Sprintf("%f,%f\n", lr.time, lr.perf))
+			fd.WriteString(fmt.Sprintf("%f,%f,%d\n", lr.time, lr.perf, lr.ddir))
 		}
 	}
 }

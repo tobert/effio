@@ -106,6 +106,10 @@ func (g *Group) scatterPlot() {
 
 		sp.GlyphStyle.Color = CustomColors[i]
 
+		// use a small + glyph instead of circles
+		sp.Shape = plot.PlusGlyph{}
+		sp.GlyphStyle.Radius = vg.Length(0.75)
+
 		p.Add(sp)
 		p.Legend.Add(test.Name, sp)
 	}

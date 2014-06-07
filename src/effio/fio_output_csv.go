@@ -156,39 +156,3 @@ func (lrs LatRecs) Reduce(fun func(LatRec, LatRec) (LatRec, error), init LatRec)
 	}
 	return
 }
-
-// reduces the number of data points to sz by taking the mean across buckets
-// TODO: this is kinda broken on bidirectional tests since it will merge the IOs
-// down to one direction blindly
-func (lrs LatRecs) Histogram(sz int) (out LatRecs) {
-	if sz > len(lrs) {
-		log.Fatalf("Error: Histogram(%d) is smaller than the dataset of length %d.", sz, len(lrs))
-	}
-
-	bktsz := len(lrs) / sz
-	log.Printf("Bucket size for %d/%d is %d\n", len(lrs), sz, bktsz)
-
-	var total, time float64
-	var bsz uint16
-	var ddir uint8
-	var count int = 0
-	for _, v := range lrs {
-		if count == 0 {
-			time = v.time
-			bsz = v.bsz
-			ddir = v.ddir // wrong!
-			total = 0.0
-		}
-
-		total += v.perf
-		count++
-
-		if count == bktsz {
-			val := total / float64(count)
-			out = append(out, LatRec{time, val, ddir, bsz})
-			count = 0
-			continue
-		}
-	}
-	return
-}

@@ -3,7 +3,6 @@ package effio
 import (
 	"code.google.com/p/plotinum/plot"
 	"code.google.com/p/plotinum/plotter"
-	"code.google.com/p/plotinum/plotutil"
 	"code.google.com/p/plotinum/vg"
 	"fmt"
 	"log"
@@ -104,7 +103,9 @@ func (g *Group) scatterPlot() {
 		if err != nil {
 			log.Fatalf("Failed to create new scatter plot for test %s: %s\n", test.Name, err)
 		}
-		sp.GlyphStyle.Color = plotutil.Color(i)
+
+		sp.GlyphStyle.Color = CustomColors[i]
+
 		p.Add(sp)
 		p.Legend.Add(test.Name, sp)
 	}
@@ -152,7 +153,7 @@ func (g *Group) barFileSizes() {
 			log.Fatalf("Error adding bar to plot: %s\n", err)
 		}
 
-		chart.Color = plotutil.Color(i)
+		chart.Color = CustomColors[i]
 		chart.Offset = vg.Points(count * bw)
 
 		p.Add(chart)

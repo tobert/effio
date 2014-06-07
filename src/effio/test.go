@@ -29,6 +29,7 @@ type Test struct {
 	Device      Device      // device info struct
 	// allow attaching raw data to a test, potentially huge, don't serialize
 	LatRecs LatRecs `json:"-"`
+	LatData LatData `json:"stats"`
 	// attach the suite to the test, creates a cycle, don't serialize
 	Suite *Suite `json:"-"`
 }

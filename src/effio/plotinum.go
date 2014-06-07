@@ -52,10 +52,11 @@ func (suite *Suite) GraphAll(suite_path string, out_path string) {
 			// points, the file loading doesn't cost enough to matter
 			for _, test := range g.Tests {
 				test.LatRecs = LoadCSV(test.LatLogPath(g.Grouping.SuitePath))
+				test.LatData = test.LatRecs.Summarize()
+				test.LatData.WriteFiles(gg.OutPath, fmt.Sprintf("%s-%s", gg.Name, g.Name))
 			}
 
 			// generate output
-			g.dumpCSV()
 			g.scatterPlot()
 
 			// release the memory
@@ -164,22 +165,6 @@ func (g *Group) barFileSizes() {
 	p.X.Max = float64(count + 1)
 
 	g.saveGraph(p, "bar-log-size")
-}
-
-func (g *Group) dumpCSV() {
-	fname := fmt.Sprintf("data-%s-%s.csv", g.Grouping.Name, g.Name)
-	fpath := path.Join(g.Grouping.OutPath, fname)
-	fd, err := os.OpenFile(fpath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
-	if err != nil {
-		log.Fatalf("Could not open '%s' for write: %s\n", fpath, err)
-	}
-	defer fd.Close()
-
-	for _, test := range g.Tests {
-		for _, lr := range test.LatRecs {
-			fd.WriteString(fmt.Sprintf("%f,%f,%d\n", lr.time, lr.perf, lr.ddir))
-		}
-	}
 }
 
 // e.g. suites/-id/-out/scatter-by_dev-random-read-512b.jpg

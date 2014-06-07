@@ -17,10 +17,13 @@ randrepeat=0
 size=100g
 directory={{ .Device.Mountpoint }}
 numjobs=1
-unlink=1
+unlink=0
 disable_lat=0
-disable_clat=1
-disable_slat=1
+disable_clat=0
+disable_slat=0
+size=100g
+nrfiles=4
+filename_format=fiodata.$filenum
 
 [{{ .Name }}]
 description="random {{ .Device.Blocksize }}b 50/50 read/write latency, 1 job"

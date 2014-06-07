@@ -41,33 +41,27 @@ func (suite *Suite) GraphAll(suite_path string, out_path string) {
 		by_tst.AppendGroup(test.Name, test)             // ends up 1:1 name => [t1]
 	}
 
-	// generate a latency logfile size graph for every group
 	for _, gg := range all {
 		for _, g := range gg.Groups {
+			// generate a latency logfile size graph for every group
 			g.barFileSizes()
-		}
-	}
 
-	// load all data into memory
-	// will be rather large but probably OK on a 16GB machine
-	for _, test := range suite.Tests {
-		// LatRec implements the plotinum interfaces Valuer, etc. and can be used directly
-		recs := LoadCSV(test.LatLogPath(suite_path))
+			// load the CSV on demand
+			// at one point this cached loaded tests between runs, but as long
+			// as plotinum is taking minutes to generate graphs with lots of data
+			// points, the file loading doesn't cost enough to matter
+			for _, test := range g.Tests {
+				test.LatRecs = LoadCSV(test.LatLogPath(g.Grouping.SuitePath))
+			}
 
-		// plotinum is slow on huge files (~8e6 entries) so resample to a smaller size for now
-		// TODO: this could be a runtime flag, since plotinum does finish with huge sample
-		// sizes but it takes 5-10 minutes per graph at 8e6 samples.
-		if len(recs) > 1000 {
-			test.LatRecs = recs.Histogram(1000)
-		} else {
-			test.LatRecs = recs
-		}
-	}
-
-	for _, gg := range all {
-		for _, g := range gg.Groups {
+			// generate output
 			g.dumpCSV()
 			g.scatterPlot()
+
+			// release the memory
+			for _, test := range g.Tests {
+				test.LatRecs = LatRecs{}
+			}
 		}
 	}
 }

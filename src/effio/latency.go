@@ -22,10 +22,10 @@ import (
 // the input is ints but plotinum uses float64 so might as well
 // start there and avoid the type conversions later
 type LatRec struct {
-	Time float64 `json:"time"`  // time offset from beginning of fio run
-	Val  float64 `json:"value"` // latency value
-	Ddir uint8   `json:"ddir"`  // 0 = read, 1 = write, 2 = trim
-	Bsz  uint16  `json:"bsz"`   // block size
+	Time float64 `json:"x"` // time offset from beginning of fio run
+	Val  float64 `json:"y"` // latency value
+	Ddir uint8   `json:"-"` // 0 = read, 1 = write, 2 = trim
+	Bsz  uint16  `json:"-"` // block size
 }
 type LatRecs []*LatRec
 
@@ -133,6 +133,7 @@ func (lrs LatRecs) DumpCSV(fpath string) {
 }
 
 // number of values to keep in summaries
+const histogram_size = 10
 const summary_size = 1000
 
 type LatData struct {
@@ -140,7 +141,6 @@ type LatData struct {
 	Max         float64 `json:"max"`
 	Count       int     `json:"count"`
 	Sum         float64 `json:"sum"`
-	Interval    float64 `json:"interval"`
 	Average     float64 `json:"average"`
 	Stddev      float64 `json:"stddev"`
 	Variance    float64 `json:"variance"`
@@ -156,6 +156,11 @@ type LatData struct {
 	BeginTs     float64 `json:"first_ts"`
 	EndTs       float64 `json:"last_ts"`
 	ElapsedTime float64 `json:"elapsed"`
+	Histogram   LatRecs `json:"histogram"`
+	RHistogram  LatRecs `json:"read_histogram"`
+	WHistogram  LatRecs `json:"write_histogram"`
+	THistogram  LatRecs `json:"trim_histogram"`
+	RecSm       LatRecs `json:"-"` // summarized to summary_size records (mean)
 	RRecSm      LatRecs `json:"-"` // summarized to summary_size records (mean)
 	WRecSm      LatRecs `json:"-"` // summarized to summary_size records (mean)
 	TRecSm      LatRecs `json:"-"` // summarized to summary_size records (mean)
@@ -169,24 +174,41 @@ type LatData struct {
 func (lrs LatRecs) Summarize() (ld LatData) {
 	ld.Max = math.SmallestNonzeroFloat64
 	ld.Min = math.MaxFloat64
-	ld.Interval = math.Abs(lrs[0].Time - lrs[len(lrs)-1].Time)
+	ld.BeginTs = lrs[0].Time
+	ld.EndTs = lrs[len(lrs)-1].Time
+	ld.ElapsedTime = math.Abs(ld.BeginTs - ld.EndTs)
 
 	// compute the bucket size, default to 1 if less than 10k samples
 	bucket_sz := 1
 	if len(lrs) > summary_size {
 		bucket_sz = int(math.Ceil(float64(len(lrs)) / summary_size))
 	}
+	hgram_bucket_sz := int(math.Ceil(float64(len(lrs)) / histogram_size))
 
 	// buckets / indexes / counts for summarization
-	var rrec, wrec, trec, rcnt, wcnt, tcnt int
+	var arec, rrec, wrec, trec, acnt, rcnt, wcnt, tcnt int
+	abkt := make(LatRecs, bucket_sz)
 	rbkt := make(LatRecs, bucket_sz)
 	wbkt := make(LatRecs, bucket_sz)
 	tbkt := make(LatRecs, bucket_sz)
 
-	// summaries by ddir
-	ld.RRecSm = make(LatRecs, summary_size)
-	ld.WRecSm = make(LatRecs, summary_size)
-	ld.TRecSm = make(LatRecs, summary_size)
+	// summarized samples, a slice is saved to ld after the first pass
+	arecsm := make(LatRecs, summary_size)
+	// by ddir
+	rrecsm := make(LatRecs, summary_size)
+	wrecsm := make(LatRecs, summary_size)
+	trecsm := make(LatRecs, summary_size)
+
+	// used to build histograms
+	var ahgrec, ahgcnt, rhgrec, rhgcnt, whgrec, whgcnt, thgrec, thgcnt int
+	ahgbkt := make(LatRecs, hgram_bucket_sz)
+	rhgbkt := make(LatRecs, hgram_bucket_sz)
+	whgbkt := make(LatRecs, hgram_bucket_sz)
+	thgbkt := make(LatRecs, hgram_bucket_sz)
+	ld.Histogram = make(LatRecs, histogram_size)
+	ld.RHistogram = make(LatRecs, histogram_size)
+	ld.WHistogram = make(LatRecs, histogram_size)
+	ld.THistogram = make(LatRecs, histogram_size)
 
 	// list of values, to be sorted for getting percentiles
 	lvs := make([]float64, len(lrs))
@@ -203,17 +225,27 @@ func (lrs LatRecs) Summarize() (ld LatData) {
 			ld.Min = lr.Val
 		}
 
+		arec, acnt = abkt.updateBucket(arec, acnt, arecsm, lr)
+		ahgrec, ahgcnt = ahgbkt.updateBucket(ahgrec, ahgcnt, ld.Histogram, lr)
 		if lr.Ddir == 0 {
-			//fmt.Printf("rbkt.update @ lrs[%d] = %v (%d) (%d) (%d)\n", i, lr, len(lrs), rrec, rcnt)
-			rrec, rcnt = rbkt.updateBucket(rrec, rcnt, ld.RRecSm, lr)
+			rrec, rcnt = rbkt.updateBucket(rrec, rcnt, rrecsm, lr)
+			rhgrec, rhgcnt = rhgbkt.updateBucket(rhgrec, rhgcnt, ld.RHistogram, lr)
 		} else if lr.Ddir == 1 {
-			wrec, wcnt = wbkt.updateBucket(wrec, wcnt, ld.WRecSm, lr)
+			wrec, wcnt = wbkt.updateBucket(wrec, wcnt, wrecsm, lr)
+			whgrec, whgcnt = whgbkt.updateBucket(whgrec, whgcnt, ld.WHistogram, lr)
 		} else if lr.Ddir == 2 {
-			trec, tcnt = tbkt.updateBucket(trec, tcnt, ld.TRecSm, lr)
+			trec, tcnt = tbkt.updateBucket(trec, tcnt, trecsm, lr)
+			thgrec, thgcnt = thgbkt.updateBucket(thgrec, thgcnt, ld.THistogram, lr)
 		}
 
 		lvs[i] = lr.Val // for sorting on value for percentiles
 	}
+
+	// there might be less than summary_size samples, save only the populated slice
+	ld.RecSm = arecsm[0:acnt]
+	ld.RRecSm = rrecsm[0:rcnt]
+	ld.WRecSm = wrecsm[0:wcnt]
+	ld.TRecSm = trecsm[0:tcnt]
 
 	// sort then assign percentiles
 	sort.Float64s(lvs)

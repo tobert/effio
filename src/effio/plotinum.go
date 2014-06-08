@@ -4,10 +4,13 @@ import (
 	"code.google.com/p/plotinum/plot"
 	"code.google.com/p/plotinum/plotter"
 	"code.google.com/p/plotinum/vg"
+	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"os"
 	"path"
+	"runtime"
 )
 
 type Group struct {
@@ -20,8 +23,8 @@ type Grouping struct {
 	Name      string // group name, e.g. "by_fio", "by_media"
 	SuitePath string // root of the suite, e.g. /home/atobey/src/effio/suites/-id/
 	OutPath   string // writing final graphs in this directory
-	Groups    Groups // e.g. "samsung_840_read_latency" => [ t1, t2, ... ]
-	Suite     *Suite // parent test suite
+	Groups    Groups `json:"-"` // e.g. "samsung_840_read_latency" => [ t1, t2, ... ]
+	Suite     *Suite `json:"-"` // parent test suite
 }
 
 // suite_path must be a fully-qualitifed path or Chdirs will fail and crash
@@ -53,16 +56,23 @@ func (suite *Suite) GraphAll(suite_path string, out_path string) {
 			for _, test := range g.Tests {
 				test.LatRecs = LoadCSV(test.LatLogPath(g.Grouping.SuitePath))
 				test.LatData = test.LatRecs.Summarize()
+
+				// release the memory used by loading the raw data then force a GC
+				// otherwise some of the CSV files easily OOM a 16G machine
+				test.LatRecs = nil
+				runtime.GC()
+
 				test.LatData.WriteFiles(gg.OutPath, fmt.Sprintf("%s-%s", gg.Name, g.Name))
 			}
 
 			// generate output
-			g.scatterPlot()
+			g.scatterPlot(true)
+			g.scatterPlot(false)
+			g.barChart(true)
+			g.barChart(false)
 
-			// release the memory
-			for _, test := range g.Tests {
-				test.LatRecs = LatRecs{}
-			}
+			// write metadata for the group/grouping as json
+			g.writeJson()
 		}
 	}
 }
@@ -80,7 +90,40 @@ func (gg *Grouping) AppendGroup(key string, test *Test) {
 	}
 }
 
-func (g *Group) scatterPlot() {
+func (g *Group) barChart(logscale bool) {
+	p, err := plot.New()
+	if err != nil {
+		log.Fatalf("Error creating new plot: %s\n", err)
+	}
+
+	// TODO: human names for test groups
+	p.Title.Text = fmt.Sprintf("Latency Distribution: %s", g.Name)
+	p.X.Label.Text = "Time Offset"
+	p.Y.Label.Text = "Latency (usec)"
+	p.Add(plotter.NewGrid())
+	p.Legend.Top = true
+	w := vg.Points(20)
+
+	for i, test := range g.Tests {
+		bars, err := plotter.NewBarChart(test.LatData.Histogram, w)
+		if err != nil {
+			log.Fatalf("Failed to create new barchart for test %s: %s\n", test.Name, err)
+		}
+		bars.Color = CustomColors[i]
+		p.Add(bars)
+		p.Legend.Add(fmt.Sprintf("read: %s ", test.Device.Name), bars)
+	}
+
+	if logscale {
+		p.Y.Scale = plot.LogScale
+		p.Y.Label.Text = "Latency (usec log(10))"
+		g.saveGraph(p, "scatter-logscale")
+	} else {
+		g.saveGraph(p, "scatter")
+	}
+}
+
+func (g *Group) scatterPlot(logscale bool) {
 	p, err := plot.New()
 	if err != nil {
 		log.Fatalf("Error creating new plot: %s\n", err)
@@ -94,22 +137,38 @@ func (g *Group) scatterPlot() {
 	p.Legend.Top = true
 
 	for i, test := range g.Tests {
-		sp, err := plotter.NewScatter(test.LatRecs)
-		if err != nil {
-			log.Fatalf("Failed to create new scatter plot for test %s: %s\n", test.Name, err)
+		if len(test.LatData.RRecSm) > 0 {
+			// reads get circles
+			rsp, err := plotter.NewScatter(test.LatData.RRecSm)
+			if err != nil {
+				log.Fatalf("Failed to create new scatter plot for test %s: %s\n", test.Name, err)
+			}
+			rsp.Shape = plot.CircleGlyph{}
+			rsp.GlyphStyle.Color = CustomColors[i]
+			p.Add(rsp)
+			p.Legend.Add(fmt.Sprintf("read: %s ", test.Device.Name), rsp)
 		}
 
-		sp.GlyphStyle.Color = CustomColors[i]
-
-		// use a small + glyph instead of circles
-		sp.Shape = plot.PlusGlyph{}
-		sp.GlyphStyle.Radius = vg.Length(0.75)
-
-		p.Add(sp)
-		p.Legend.Add(test.Name, sp)
+		if len(test.LatData.WRecSm) > 0 {
+			// writes get pyramids, same color
+			wsp, err := plotter.NewScatter(test.LatData.WRecSm)
+			if err != nil {
+				log.Fatalf("Failed to create new scatter plot for test %s: %s\n", test.Name, err)
+			}
+			wsp.Shape = plot.PyramidGlyph{}
+			wsp.GlyphStyle.Color = CustomColors[i]
+			p.Add(wsp)
+			p.Legend.Add(fmt.Sprintf("write: %s ", test.Device.Name), wsp)
+		}
 	}
 
-	g.saveGraph(p, "scatter")
+	if logscale {
+		p.Y.Scale = plot.LogScale
+		p.Y.Label.Text = "Latency (usec log(10))"
+		g.saveGraph(p, "scatter-logscale")
+	} else {
+		g.saveGraph(p, "scatter")
+	}
 }
 
 // draws a bar graph displaying the sizes of the lat_lat.log files across
@@ -167,11 +226,27 @@ func (g *Group) barFileSizes() {
 	g.saveGraph(p, "bar-log-size")
 }
 
+func (g *Group) writeJson() {
+	fname := fmt.Sprintf("group-%s-%s.json", g.Grouping.Name, g.Name)
+	outfile := path.Join(g.Grouping.OutPath, fname)
+
+	js, err := json.MarshalIndent(g, "", "  ")
+	if err != nil {
+		log.Fatalf("Failed to encode group data as JSON: %s\n", err)
+	}
+	js = append(js, byte('\n'))
+
+	err = ioutil.WriteFile(outfile, js, 0644)
+	if err != nil {
+		log.Fatalf("Failed to write group JSON data file '%s': %s\n", outfile, err)
+	}
+}
+
 // e.g. suites/-id/-out/scatter-by_dev-random-read-512b.jpg
 func (g *Group) saveGraph(p *plot.Plot, name string) {
-	fname := fmt.Sprintf("%s-%s-%s.png", name, g.Grouping.Name, g.Name)
+	fname := fmt.Sprintf("%s-%s-%s.svg", name, g.Grouping.Name, g.Name)
 	fpath := path.Join(g.Grouping.OutPath, fname)
-	err := p.Save(10, 10, fpath)
+	err := p.Save(12, 8, fpath)
 	if err != nil {
 		log.Fatalf("Failed to save %s: %s\n", fpath, err)
 	}

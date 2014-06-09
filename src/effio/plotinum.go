@@ -108,19 +108,31 @@ func (g *Group) barChart(logscale bool) {
 		fmt.Printf("Histogram for %s: %v\n", test.Name, test.LatData.Histogram)
 		bars, err := plotter.NewBarChart(test.LatData.Histogram, w)
 		if err != nil {
-			log.Fatalf("Failed to create new barchart for test %s: %s\n", test.Name, err)
+			log.Printf("Failed to create new barchart for test %s: %s\n", test.Name, err)
+			return
 		}
 		bars.Color = CustomColors[i]
 		p.Add(bars)
 		p.Legend.Add(fmt.Sprintf("read: %s ", test.Device.Name), bars)
 	}
 
+
 	if logscale {
 		p.Y.Scale = plot.LogScale
 		p.Y.Label.Text = "Latency (usec log(10))"
-		g.saveGraph(p, "scatter-logscale")
+
+		// defer the savegraph functions so panics can be recovered
+		// plotinum will panic on zero values when LogScale is enabled
+		// BUG/TODO: somewhere in latency.go histograms are getting
+		// entries with values of 0 which should be impossible on latency data
+		defer func() {
+			if r := recover(); r != nil {
+				fmt.Println("Recovered from g.saveGraph()", r)
+			}
+		}()
+		defer g.saveGraph(p, "histogram_bars-logscale")
 	} else {
-		g.saveGraph(p, "scatter")
+		g.saveGraph(p, "histogram_bars")
 	}
 }
 
@@ -142,9 +154,11 @@ func (g *Group) scatterPlot(logscale bool) {
 			// reads get circles
 			rsp, err := plotter.NewScatter(test.LatData.RRecSm)
 			if err != nil {
-				log.Fatalf("Failed to create new scatter plot for test %s: %s\n", test.Name, err)
+				log.Printf("Failed to create new scatter plot for test %s: %s\n", test.Name, err)
+				return
 			}
 			rsp.Shape = plot.CircleGlyph{}
+			rsp.Radius = vg.Points(3)
 			rsp.GlyphStyle.Color = CustomColors[i]
 			p.Add(rsp)
 			p.Legend.Add(fmt.Sprintf("read: %s ", test.Device.Name), rsp)
@@ -154,9 +168,11 @@ func (g *Group) scatterPlot(logscale bool) {
 			// writes get pyramids, same color
 			wsp, err := plotter.NewScatter(test.LatData.WRecSm)
 			if err != nil {
-				log.Fatalf("Failed to create new scatter plot for test %s: %s\n", test.Name, err)
+				log.Printf("Failed to create new scatter plot for test %s: %s\n", test.Name, err)
+				return
 			}
 			wsp.Shape = plot.PyramidGlyph{}
+			wsp.Radius = vg.Points(3)
 			wsp.GlyphStyle.Color = CustomColors[i]
 			p.Add(wsp)
 			p.Legend.Add(fmt.Sprintf("write: %s ", test.Device.Name), wsp)
@@ -245,7 +261,7 @@ func (g *Group) writeJson() {
 
 // e.g. suites/-id/-out/scatter-by_dev-random-read-512b.jpg
 func (g *Group) saveGraph(p *plot.Plot, name string) {
-	fname := fmt.Sprintf("%s-%s-%s.svg", name, g.Grouping.Name, g.Name)
+	fname := fmt.Sprintf("%s-%s-%s.png", name, g.Grouping.Name, g.Name)
 	fpath := path.Join(g.Grouping.OutPath, fname)
 	err := p.Save(12, 8, fpath)
 	if err != nil {

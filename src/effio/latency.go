@@ -176,41 +176,38 @@ func (lrs LatRecs) Summarize(summary_size int, histogram_size int) (ld LatData) 
 	ld.EndTs = lrs[len(lrs)-1].Time
 	ld.ElapsedTime = math.Abs(ld.BeginTs - ld.EndTs)
 
-	// compute the bucket size, default to 1 if less than 10k samples
-	bucket_sz := 1
-	if len(lrs) > summary_size {
-		bucket_sz = int(math.Ceil(float64(len(lrs)) / float64(summary_size)))
+	// allocate histograms & summaries
+	// same thing really but summaries are meant to be used to take huge
+	// CSV logs and reduce them down to something more manageable
+	ld.RecSm = make(LatRecs, summary_size)       // all-IO sampled data
+	ld.RRecSm = make(LatRecs, summary_size)      // reads sampled data
+	ld.WRecSm = make(LatRecs, summary_size)      // writes sampled data
+	ld.TRecSm = make(LatRecs, summary_size)      // trims sampled data
+	ld.Histogram = make(LatRecs, histogram_size) // all-IO histogram
+	ld.RHistogram = make(LatRecs, histogram_size) // reads histogram
+	ld.WHistogram = make(LatRecs, histogram_size) // writes histogram
+	ld.THistogram = make(LatRecs, histogram_size) // trims histogram
+
+	if summary_size > len(lrs) {
+		summary_size = len(lrs)
 	}
-	hgram_bucket_sz := int(math.Ceil(float64(len(lrs)) / float64(histogram_size)))
 
-	// buckets / indexes / counts for summarization
-	var arec, rrec, wrec, trec, acnt, rcnt, wcnt, tcnt int
-	abkt := make(LatRecs, bucket_sz)
-	rbkt := make(LatRecs, bucket_sz)
-	wbkt := make(LatRecs, bucket_sz)
-	tbkt := make(LatRecs, bucket_sz)
+	if histogram_size > len(lrs) {
+		histogram_size = len(lrs)
+	}
 
-	// summarized samples, a slice is saved to ld after the first pass
-	arecsm := make(LatRecs, summary_size)
-	// by ddir
-	rrecsm := make(LatRecs, summary_size)
-	wrecsm := make(LatRecs, summary_size)
-	trecsm := make(LatRecs, summary_size)
-
-	// used to build histograms, same as summarization, but (usually) much smaller
-	var ahgrec, ahgcnt, rhgrec, rhgcnt, whgrec, whgcnt, thgrec, thgcnt int
-	ahgbkt := make(LatRecs, hgram_bucket_sz)
-	rhgbkt := make(LatRecs, hgram_bucket_sz)
-	whgbkt := make(LatRecs, hgram_bucket_sz)
-	thgbkt := make(LatRecs, hgram_bucket_sz)
-	ahg := make(LatRecs, histogram_size)
-	rhg := make(LatRecs, histogram_size)
-	whg := make(LatRecs, histogram_size)
-	thg := make(LatRecs, histogram_size)
+	// variables needed for creating all-IO summaries & histograms
+	var reads, writes, trims int                                  // count up by IO direction
+	var arec, acnt, ahgrec, ahgcnt int                            // indexes into buckets/output
+	abkt := make(LatRecs, bucketSize(summary_size, len(lrs)))     // summary bucket
+	ahgbkt := make(LatRecs, bucketSize(histogram_size, len(lrs))) // histogram bucket
+	fmt.Printf("len(abkt): %d, summary_size: %d, len(lrs): %d\n", len(abkt), summary_size, len(lrs))
+	fmt.Printf("len(ahgbkt): %d, histogram_size: %d, len(lrs): %d\n", len(ahgbkt), histogram_size, len(lrs))
 
 	// list of values, to be sorted for getting percentiles
 	lvs := make([]float64, len(lrs))
 
+	// first pass
 	for i, lr := range lrs {
 		ld.Count++
 		ld.Sum += lr.Val
@@ -223,33 +220,61 @@ func (lrs LatRecs) Summarize(summary_size int, histogram_size int) (ld LatData) 
 			ld.Min = lr.Val
 		}
 
-		arec, acnt = abkt.updateBucket(arec, acnt, arecsm, lr)
-		ahgrec, ahgcnt = ahgbkt.updateBucket(ahgrec, ahgcnt, ahg, lr)
+		// create all-IO sample/summary & histogram
+		arec, acnt = abkt.updateBucket(arec, acnt, ld.RecSm, lr)
+		ahgrec, ahgcnt = ahgbkt.updateBucket(ahgrec, ahgcnt, ld.Histogram, lr)
+
+		// count up each by IO type for resampling/histograms
 		if lr.Ddir == 0 {
-			rrec, rcnt = rbkt.updateBucket(rrec, rcnt, rrecsm, lr)
-			rhgrec, rhgcnt = rhgbkt.updateBucket(rhgrec, rhgcnt, rhg, lr)
+			reads++
 		} else if lr.Ddir == 1 {
-			wrec, wcnt = wbkt.updateBucket(wrec, wcnt, wrecsm, lr)
-			whgrec, whgcnt = whgbkt.updateBucket(whgrec, whgcnt, whg, lr)
+			writes++
 		} else if lr.Ddir == 2 {
-			trec, tcnt = tbkt.updateBucket(trec, tcnt, trecsm, lr)
-			thgrec, thgcnt = thgbkt.updateBucket(thgrec, thgcnt, thg, lr)
+			trims++
 		}
 
 		lvs[i] = lr.Val // for sorting on value for percentiles
 	}
 
-	// there might be less than summary_size samples, save only the populated slice
-	ld.RecSm = arecsm[0:acnt]
-	ld.RRecSm = rrecsm[0:rcnt]
-	ld.WRecSm = wrecsm[0:wcnt]
-	ld.TRecSm = trecsm[0:tcnt]
-	ld.Histogram = ahg[0:ahgcnt]
-	ld.RHistogram = rhg[0:rhgcnt]
-	ld.WHistogram = whg[0:whgcnt]
-	ld.THistogram = thg[0:thgcnt]
+	// needed for stddev
+	ld.Average = ld.Sum / float64(ld.Count)
 
-	// sort then assign percentiles
+	// buckets / indexes / counts for summarization
+	var rrec, wrec, trec, rcnt, wcnt, tcnt int
+	rbkt := make(LatRecs, bucketSize(summary_size, reads))
+	wbkt := make(LatRecs, bucketSize(summary_size, writes))
+	tbkt := make(LatRecs, bucketSize(summary_size, trims))
+
+	// used to build histograms, same as summarization, but (usually) much smaller
+	var rhgrec, rhgcnt, whgrec, whgcnt, thgrec, thgcnt int
+	rhgbkt := make(LatRecs, bucketSize(histogram_size, reads))
+	whgbkt := make(LatRecs, bucketSize(histogram_size, writes))
+	thgbkt := make(LatRecs, bucketSize(histogram_size, trims))
+
+	var dsum float64 // sum for stddev
+
+	// second pass, populate ddir summaries/histograms & build stddev sum
+	for _, lr := range lrs {
+		if lr.Ddir == 0 {
+			rrec, rcnt = rbkt.updateBucket(rrec, rcnt, ld.RRecSm, lr)
+			rhgrec, rhgcnt = rhgbkt.updateBucket(rhgrec, rhgcnt, ld.RHistogram, lr)
+		} else if lr.Ddir == 1 {
+			wrec, wcnt = wbkt.updateBucket(wrec, wcnt, ld.WRecSm, lr)
+			whgrec, whgcnt = whgbkt.updateBucket(whgrec, whgcnt, ld.WHistogram, lr)
+		} else if lr.Ddir == 2 {
+			trec, tcnt = tbkt.updateBucket(trec, tcnt, ld.TRecSm, lr)
+			thgrec, thgcnt = thgbkt.updateBucket(thgrec, thgcnt, ld.THistogram, lr)
+		}
+
+		// update stddev sum
+		dsum += math.Pow((lr.Val - ld.Average), 2)
+	}
+
+	// finish computing variance & standard deviation
+	ld.Variance = dsum / float64(ld.Count)
+	ld.Stddev = math.Sqrt(ld.Variance)
+
+	// sort []float64 list then assign percentiles
 	sort.Float64s(lvs)
 	pctl_idx := func(pc float64) int {
 		idx := math.Floor(float64(len(lvs))*(pc/100) + 0.5)
@@ -267,18 +292,6 @@ func (lrs LatRecs) Summarize(summary_size int, histogram_size int) (ld LatData) 
 	ld.P90 = lvs[pctl_idx(90)]
 	ld.P95 = lvs[pctl_idx(95)]
 	ld.P99 = lvs[pctl_idx(99)]
-
-	// needed for stddev
-	ld.Average = ld.Sum / float64(ld.Count)
-
-	// second pass over values is required to compute the standard deviation
-	// use lvs instead of lrs: it's smaller, recently accessed, might be in cache
-	var dsum float64
-	for _, v := range lvs {
-		dsum += math.Pow((v - ld.Average), 2)
-	}
-	ld.Variance = dsum / float64(ld.Count)
-	ld.Stddev = math.Sqrt(ld.Variance)
 
 	return
 }
@@ -305,13 +318,32 @@ func (ld *LatData) WriteFiles(fpath string, ffrag string) {
 	ld.TRecSm.DumpCSV(path.Join(fpath, fmt.Sprintf("summary-trim-%s.csv", ffrag)))
 }
 
+// compute the bucket size, default to 1 if less than summary_size
+func bucketSize(buckets int, available int) int {
+	if buckets < available {
+		return int(math.Floor(float64(available) / float64(buckets)))
+	}
+	return 1
+}
+
 // Adds the value to the bucket at index bktidx, with lr. When full
 // summarized into smry[smry_idx]. Returns updated indexes.
-func (bucket LatRecs) updateBucket(bktidx int, smry_idx int, smry LatRecs, lr *LatRec) (int, int) {
+// it is safe to use the same bucket on each iteration
+// bktidx: current bucket index
+// hgidx: current histogram index
+// hgram: histogram (list) - written to!
+// lr: current latency record to add to the bucket
+// Returns: (new bucket index, new histogram index)
+func (bucket LatRecs) updateBucket(bktidx int, hgidx int, hgram LatRecs, lr *LatRec) (int, int) {
+	// [..., bktidx => lr, ... ]
 	bucket[bktidx] = lr
+	bktidx++
 
-	// end of the bucket
-	if bktidx+1 == len(bucket) {
+	// advance the bucket index, stay on the same summary index
+	if bktidx < len(bucket) {
+		return bktidx, hgidx
+	// bucket is full, sum it & advance to the next histogram entry
+	} else {
 		var ptotal, ttotal float64
 		for _, v := range bucket {
 			ptotal += v.Val
@@ -324,13 +356,11 @@ func (bucket LatRecs) updateBucket(bktidx int, smry_idx int, smry LatRecs, lr *L
 			Ddir: lr.Ddir,
 			Bsz:  lr.Bsz,
 		}
-		//fmt.Printf("smry[%d] = %v (%d)\n", smry_idx, nlr, len(smry))
-		smry[smry_idx] = &nlr
 
-		// bucket is now summed & stored, reset the bucket index to 0
-		return 0, smry_idx + 1
-		// advance the bucket index, stay on the same summary index
-	} else {
-		return bktidx + 1, smry_idx
+		fmt.Printf("hgram[%d/%d] = %v\n", hgidx, len(hgram)-1, nlr)
+		hgram[hgidx] = &nlr
+
+		// bucket is now summed & stored at hgidx, reset the bucket index to 0
+		return 0, hgidx + 1
 	}
 }

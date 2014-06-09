@@ -55,7 +55,7 @@ func (suite *Suite) GraphAll(suite_path string, out_path string) {
 			// points, the file loading doesn't cost enough to matter
 			for _, test := range g.Tests {
 				test.LatRecs = LoadCSV(test.LatLogPath(g.Grouping.SuitePath))
-				test.LatData = test.LatRecs.Summarize()
+				test.LatData = test.LatRecs.Summarize(10000, 10)
 
 				// release the memory used by loading the raw data then force a GC
 				// otherwise some of the CSV files easily OOM a 16G machine
@@ -105,6 +105,7 @@ func (g *Group) barChart(logscale bool) {
 	w := vg.Points(20)
 
 	for i, test := range g.Tests {
+		fmt.Printf("Histogram for %s: %v\n", test.Name, test.LatData.Histogram)
 		bars, err := plotter.NewBarChart(test.LatData.Histogram, w)
 		if err != nil {
 			log.Fatalf("Failed to create new barchart for test %s: %s\n", test.Name, err)

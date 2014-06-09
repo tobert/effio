@@ -132,10 +132,6 @@ func (lrs LatRecs) DumpCSV(fpath string) {
 	}
 }
 
-// number of values to keep in summaries
-const histogram_size = 10
-const summary_size = 1000
-
 type LatData struct {
 	Min         float64 `json:"min"`
 	Max         float64 `json:"max"`
@@ -167,11 +163,13 @@ type LatData struct {
 }
 
 // Summarizes the LatRecs data into a LatData.
+// First argument is the number of samples to put in the summaries.
+// Second argument is the number of buckets in the histograms.
 // This does all the work in 3 passes, the first getting avg/min/max.
 // Then the values are sorted to access the percentiles by index.
 // The final pass computes the standard deviation, which requires the average
 // from the first pass.
-func (lrs LatRecs) Summarize() (ld LatData) {
+func (lrs LatRecs) Summarize(summary_size int, histogram_size int) (ld LatData) {
 	ld.Max = math.SmallestNonzeroFloat64
 	ld.Min = math.MaxFloat64
 	ld.BeginTs = lrs[0].Time
@@ -181,9 +179,9 @@ func (lrs LatRecs) Summarize() (ld LatData) {
 	// compute the bucket size, default to 1 if less than 10k samples
 	bucket_sz := 1
 	if len(lrs) > summary_size {
-		bucket_sz = int(math.Ceil(float64(len(lrs)) / summary_size))
+		bucket_sz = int(math.Ceil(float64(len(lrs)) / float64(summary_size)))
 	}
-	hgram_bucket_sz := int(math.Ceil(float64(len(lrs)) / histogram_size))
+	hgram_bucket_sz := int(math.Ceil(float64(len(lrs)) / float64(histogram_size)))
 
 	// buckets / indexes / counts for summarization
 	var arec, rrec, wrec, trec, acnt, rcnt, wcnt, tcnt int

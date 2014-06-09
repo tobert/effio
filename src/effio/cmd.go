@@ -54,6 +54,8 @@ func (cmd *Cmd) Run() {
 		cmd.Mountall()
 	case "graph":
 		cmd.GraphSuite()
+	case "summarize":
+		cmd.SummarizeCSV()
 	case "help", "-h", "-help", "--help":
 		cmd.Usage()
 	default:

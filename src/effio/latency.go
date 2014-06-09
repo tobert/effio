@@ -197,7 +197,7 @@ func (lrs LatRecs) Summarize(summary_size int, histogram_size int) (ld LatData) 
 	wrecsm := make(LatRecs, summary_size)
 	trecsm := make(LatRecs, summary_size)
 
-	// used to build histograms
+	// used to build histograms, same as summarization, but (usually) much smaller
 	var ahgrec, ahgcnt, rhgrec, rhgcnt, whgrec, whgcnt, thgrec, thgcnt int
 	ahgbkt := make(LatRecs, hgram_bucket_sz)
 	rhgbkt := make(LatRecs, hgram_bucket_sz)
@@ -272,7 +272,7 @@ func (lrs LatRecs) Summarize(summary_size int, histogram_size int) (ld LatData) 
 	ld.Average = ld.Sum / float64(ld.Count)
 
 	// second pass over values is required to compute the standard deviation
-	// use lvs instead of lrs since it was just sorted and might be in cache
+	// use lvs instead of lrs: it's smaller, recently accessed, might be in cache
 	var dsum float64
 	for _, v := range lvs {
 		dsum += math.Pow((v - ld.Average), 2)

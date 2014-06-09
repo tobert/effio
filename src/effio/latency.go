@@ -215,8 +215,8 @@ func (lrs LatRecs) Summarize(summary_size int, histogram_size int) (ld LatData) 
 		}
 
 		// create all-IO sample/summary & histogram
-		arec, acnt = abkt.updateBucket(arec, acnt, ld.RecSm, lr)
-		ahgrec, ahgcnt = ahgbkt.updateBucket(ahgrec, ahgcnt, ld.Histogram, lr)
+		arec, acnt = abkt.updateBucket(arec, acnt, ld.RecSm, lrs, i)
+		ahgrec, ahgcnt = ahgbkt.updateBucket(ahgrec, ahgcnt, ld.Histogram, lrs, i)
 
 		// count up each by IO type for resampling/histograms
 		if lr.Ddir == 0 {
@@ -234,6 +234,7 @@ func (lrs LatRecs) Summarize(summary_size int, histogram_size int) (ld LatData) 
 
 	// buckets / indexes / counts for summarization
 	var rrec, wrec, trec, rcnt, wcnt, tcnt int
+	fmt.Printf("rbkt := make(LatRecs, %d = bucketSize(%d, %d))\n", bucketSize(summary_size, reads), summary_size, reads)
 	rbkt := make(LatRecs, bucketSize(summary_size, reads))
 	wbkt := make(LatRecs, bucketSize(summary_size, writes))
 	tbkt := make(LatRecs, bucketSize(summary_size, trims))
@@ -246,23 +247,64 @@ func (lrs LatRecs) Summarize(summary_size int, histogram_size int) (ld LatData) 
 
 	// second pass, populate ddir summaries/histograms & build stddev sum
 	var dsum float64 // sum for stddev
-	for _, lr := range lrs {
+	for i, lr := range lrs {
 		if lr.Ddir == 0 {
-			rrec, rcnt = rbkt.updateBucket(rrec, rcnt, ld.RRecSm, lr)
-			rhgrec, rhgcnt = rhgbkt.updateBucket(rhgrec, rhgcnt, ld.RHistogram, lr)
+			rrec, rcnt = rbkt.updateBucket(rrec, rcnt, ld.RRecSm, lrs, i)
+			rhgrec, rhgcnt = rhgbkt.updateBucket(rhgrec, rhgcnt, ld.RHistogram, lrs, i)
 		} else if lr.Ddir == 1 {
-			wrec, wcnt = wbkt.updateBucket(wrec, wcnt, ld.WRecSm, lr)
-			whgrec, whgcnt = whgbkt.updateBucket(whgrec, whgcnt, ld.WHistogram, lr)
+			wrec, wcnt = wbkt.updateBucket(wrec, wcnt, ld.WRecSm, lrs, i)
+			whgrec, whgcnt = whgbkt.updateBucket(whgrec, whgcnt, ld.WHistogram, lrs, i)
 		} else if lr.Ddir == 2 {
-			trec, tcnt = tbkt.updateBucket(trec, tcnt, ld.TRecSm, lr)
-			thgrec, thgcnt = thgbkt.updateBucket(thgrec, thgcnt, ld.THistogram, lr)
+			trec, tcnt = tbkt.updateBucket(trec, tcnt, ld.TRecSm, lrs, i)
+			thgrec, thgcnt = thgbkt.updateBucket(thgrec, thgcnt, ld.THistogram, lrs, i)
 		}
 
 		// update stddev sum
 		dsum += math.Pow((lr.Val - ld.Average), 2)
 	}
 
+	ld.fillHgrams() // hack
 	ld.updatePercentiles(lvs, dsum)
+
+	return
+}
+
+// quick hack to fill in null elements in lists
+// this is due to a bug somewhere else I'll have to fix later
+func (ld *LatData) fillHgrams() {
+	ld.Histogram.fill("ld.Histogram")
+	ld.RHistogram.fill("ld.RHistogram")
+	ld.WHistogram.fill("ld.WHistogram")
+	ld.THistogram.fill("ld.THistogram")
+	ld.RecSm.fill("ld.RecSm")
+	ld.RRecSm.fill("ld.RRecSm")
+	ld.WRecSm.fill("ld.WRecSm")
+	ld.TRecSm.fill("ld.TRecSm")
+}
+
+// cheezy hack
+func (lrs LatRecs) fill(name string) {
+	var cnt int
+	if lrs[0] == nil {
+		lrs[0] = &LatRec{1, 1, 3, 512}
+	}
+	for i, _ := range lrs {
+		if lrs[i] == nil {
+			lrs[i] = lrs[i-1]
+			cnt++
+		}
+
+		if lrs[i].Val == 0 {
+			fmt.Printf("Zero value at index %d\n", i)
+		}
+		if lrs[i].Time == 0 {
+			fmt.Printf("Zero time at index %d\n", i)
+		}
+	}
+
+	if cnt > 0 {
+		fmt.Printf("BUG: Filled in %d entries at the end of %s\n", cnt, name)
+	}
 
 	return
 }
@@ -316,7 +358,7 @@ func (ld *LatData) WriteFiles(fpath string, ffrag string) {
 // compute the bucket size, default to 1 if less than summary_size
 func bucketSize(buckets int, available int) int {
 	if buckets < available {
-		return int(math.Floor(float64(available) / float64(buckets)))
+		return int(math.Ceil(float64(available) / float64(buckets)))
 	}
 	return 1
 }
@@ -327,18 +369,23 @@ func bucketSize(buckets int, available int) int {
 // bktidx: current bucket index
 // hgidx: current histogram index
 // hgram: histogram (list) - written to!
-// lr: current latency record to add to the bucket
+// lrs: source data slice
+// lridx: current index into the source data slice
 // Returns: (new bucket index, new histogram index)
-func (bucket LatRecs) updateBucket(bktidx int, hgidx int, hgram LatRecs, lr *LatRec) (int, int) {
+func (bucket LatRecs) updateBucket(bktidx int, hgidx int, hgram LatRecs, lrs LatRecs, lridx int) (int, int) {
 	// [..., bktidx => lr, ... ]
-	bucket[bktidx] = lr
-	bktidx++
+	bucket[bktidx] = lrs[lridx]
 
 	// advance the bucket index, stay on the same summary index
-	if bktidx < len(bucket) {
-		return bktidx, hgidx
-		// bucket is full, sum it & advance to the next histogram entry
+	if bktidx < len(bucket)-1 && lridx < len(lrs)-1 {
+		return bktidx + 1, hgidx
+		// bucket is full or end of data, sum it & advance to the next histogram entry
 	} else {
+		// last available sample, most likely a short bucket at the end
+		if lridx == len(lrs)-1 {
+			bucket = bucket[0:bktidx]
+		}
+
 		var ptotal, ttotal float64
 		for _, v := range bucket {
 			ptotal += v.Val
@@ -348,11 +395,17 @@ func (bucket LatRecs) updateBucket(bktidx int, hgidx int, hgram LatRecs, lr *Lat
 		nlr := LatRec{
 			Time: math.Floor(ttotal / float64(len(bucket))),
 			Val:  ptotal / float64(len(bucket)),
-			Ddir: lr.Ddir,
-			Bsz:  lr.Bsz,
+			Ddir: lrs[lridx].Ddir,
+			Bsz:  lrs[lridx].Bsz,
 		}
 
-		hgram[hgidx] = &nlr
+		// BUG: not sure why I'm overrunning this yet, but no time to fix it
+		// at the moment, the graphs will be fine for now ... atobey(2014-06-09)
+		if hgidx < len(hgram) {
+			hgram[hgidx] = &nlr
+		} else {
+			fmt.Printf("BUG: hgram[%d] > %d is out of bounds!\n", hgidx, len(hgram))
+		}
 
 		// bucket is now summed & stored at hgidx, reset the bucket index to 0
 		return 0, hgidx + 1

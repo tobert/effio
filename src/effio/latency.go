@@ -203,10 +203,10 @@ func (lrs LatRecs) Summarize(summary_size int, histogram_size int) (ld LatData) 
 	rhgbkt := make(LatRecs, hgram_bucket_sz)
 	whgbkt := make(LatRecs, hgram_bucket_sz)
 	thgbkt := make(LatRecs, hgram_bucket_sz)
-	ld.Histogram = make(LatRecs, histogram_size)
-	ld.RHistogram = make(LatRecs, histogram_size)
-	ld.WHistogram = make(LatRecs, histogram_size)
-	ld.THistogram = make(LatRecs, histogram_size)
+	ahg := make(LatRecs, histogram_size)
+	rhg := make(LatRecs, histogram_size)
+	whg := make(LatRecs, histogram_size)
+	thg := make(LatRecs, histogram_size)
 
 	// list of values, to be sorted for getting percentiles
 	lvs := make([]float64, len(lrs))
@@ -224,16 +224,16 @@ func (lrs LatRecs) Summarize(summary_size int, histogram_size int) (ld LatData) 
 		}
 
 		arec, acnt = abkt.updateBucket(arec, acnt, arecsm, lr)
-		ahgrec, ahgcnt = ahgbkt.updateBucket(ahgrec, ahgcnt, ld.Histogram, lr)
+		ahgrec, ahgcnt = ahgbkt.updateBucket(ahgrec, ahgcnt, ahg, lr)
 		if lr.Ddir == 0 {
 			rrec, rcnt = rbkt.updateBucket(rrec, rcnt, rrecsm, lr)
-			rhgrec, rhgcnt = rhgbkt.updateBucket(rhgrec, rhgcnt, ld.RHistogram, lr)
+			rhgrec, rhgcnt = rhgbkt.updateBucket(rhgrec, rhgcnt, rhg, lr)
 		} else if lr.Ddir == 1 {
 			wrec, wcnt = wbkt.updateBucket(wrec, wcnt, wrecsm, lr)
-			whgrec, whgcnt = whgbkt.updateBucket(whgrec, whgcnt, ld.WHistogram, lr)
+			whgrec, whgcnt = whgbkt.updateBucket(whgrec, whgcnt, whg, lr)
 		} else if lr.Ddir == 2 {
 			trec, tcnt = tbkt.updateBucket(trec, tcnt, trecsm, lr)
-			thgrec, thgcnt = thgbkt.updateBucket(thgrec, thgcnt, ld.THistogram, lr)
+			thgrec, thgcnt = thgbkt.updateBucket(thgrec, thgcnt, thg, lr)
 		}
 
 		lvs[i] = lr.Val // for sorting on value for percentiles
@@ -244,6 +244,10 @@ func (lrs LatRecs) Summarize(summary_size int, histogram_size int) (ld LatData) 
 	ld.RRecSm = rrecsm[0:rcnt]
 	ld.WRecSm = wrecsm[0:wcnt]
 	ld.TRecSm = trecsm[0:tcnt]
+	ld.Histogram = ahg[0:ahgcnt]
+	ld.RHistogram = rhg[0:rhgcnt]
+	ld.WHistogram = whg[0:whgcnt]
+	ld.THistogram = thg[0:thgcnt]
 
 	// sort then assign percentiles
 	sort.Float64s(lvs)
@@ -304,7 +308,6 @@ func (ld *LatData) WriteFiles(fpath string, ffrag string) {
 // Adds the value to the bucket at index bktidx, with lr. When full
 // summarized into smry[smry_idx]. Returns updated indexes.
 func (bucket LatRecs) updateBucket(bktidx int, smry_idx int, smry LatRecs, lr *LatRec) (int, int) {
-	//fmt.Printf("(%d) bucket[%d] = %v\n", len(bucket), bktidx, lr)
 	bucket[bktidx] = lr
 
 	// end of the bucket

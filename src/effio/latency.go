@@ -135,7 +135,7 @@ func (lrs LatRecs) DumpCSV(fpath string) {
 type LatData struct {
 	Min         float64 `json:"min"`
 	Max         float64 `json:"max"`
-	Count       int     `json:"count"`
+	Samples     int     `json:"count"`
 	Sum         float64 `json:"sum"`
 	Average     float64 `json:"average"`
 	Stddev      float64 `json:"stddev"`
@@ -170,24 +170,6 @@ type LatData struct {
 // The final pass computes the standard deviation, which requires the average
 // from the first pass.
 func (lrs LatRecs) Summarize(summary_size int, histogram_size int) (ld LatData) {
-	ld.Max = math.SmallestNonzeroFloat64
-	ld.Min = math.MaxFloat64
-	ld.BeginTs = lrs[0].Time
-	ld.EndTs = lrs[len(lrs)-1].Time
-	ld.ElapsedTime = math.Abs(ld.BeginTs - ld.EndTs)
-
-	// allocate histograms & summaries
-	// same thing really but summaries are meant to be used to take huge
-	// CSV logs and reduce them down to something more manageable
-	ld.RecSm = make(LatRecs, summary_size)       // all-IO sampled data
-	ld.RRecSm = make(LatRecs, summary_size)      // reads sampled data
-	ld.WRecSm = make(LatRecs, summary_size)      // writes sampled data
-	ld.TRecSm = make(LatRecs, summary_size)      // trims sampled data
-	ld.Histogram = make(LatRecs, histogram_size) // all-IO histogram
-	ld.RHistogram = make(LatRecs, histogram_size) // reads histogram
-	ld.WHistogram = make(LatRecs, histogram_size) // writes histogram
-	ld.THistogram = make(LatRecs, histogram_size) // trims histogram
-
 	if summary_size > len(lrs) {
 		summary_size = len(lrs)
 	}
@@ -195,6 +177,20 @@ func (lrs LatRecs) Summarize(summary_size int, histogram_size int) (ld LatData) 
 	if histogram_size > len(lrs) {
 		histogram_size = len(lrs)
 	}
+
+	ld.Max = math.SmallestNonzeroFloat64
+	ld.Min = math.MaxFloat64
+	ld.BeginTs = lrs[0].Time
+	ld.EndTs = lrs[len(lrs)-1].Time
+	ld.ElapsedTime = math.Abs(ld.BeginTs - ld.EndTs)
+	ld.RecSm = make(LatRecs, summary_size)        // all-IO sampled data
+	ld.RRecSm = make(LatRecs, summary_size)       // reads sampled data
+	ld.WRecSm = make(LatRecs, summary_size)       // writes sampled data
+	ld.TRecSm = make(LatRecs, summary_size)       // trims sampled data
+	ld.Histogram = make(LatRecs, histogram_size)  // all-IO histogram
+	ld.RHistogram = make(LatRecs, histogram_size) // reads histogram
+	ld.WHistogram = make(LatRecs, histogram_size) // writes histogram
+	ld.THistogram = make(LatRecs, histogram_size) // trims histogram
 
 	// variables needed for creating all-IO summaries & histograms
 	var reads, writes, trims int                                  // count up by IO direction
@@ -207,7 +203,7 @@ func (lrs LatRecs) Summarize(summary_size int, histogram_size int) (ld LatData) 
 
 	// first pass
 	for i, lr := range lrs {
-		ld.Count++
+		ld.Samples++
 		ld.Sum += lr.Val
 
 		if lr.Val > ld.Max {
@@ -234,8 +230,7 @@ func (lrs LatRecs) Summarize(summary_size int, histogram_size int) (ld LatData) 
 		lvs[i] = lr.Val // for sorting on value for percentiles
 	}
 
-	// needed for stddev
-	ld.Average = ld.Sum / float64(ld.Count)
+	ld.Average = ld.Sum / float64(ld.Samples) // needed for stddev
 
 	// buckets / indexes / counts for summarization
 	var rrec, wrec, trec, rcnt, wcnt, tcnt int
@@ -249,9 +244,8 @@ func (lrs LatRecs) Summarize(summary_size int, histogram_size int) (ld LatData) 
 	whgbkt := make(LatRecs, bucketSize(histogram_size, writes))
 	thgbkt := make(LatRecs, bucketSize(histogram_size, trims))
 
-	var dsum float64 // sum for stddev
-
 	// second pass, populate ddir summaries/histograms & build stddev sum
+	var dsum float64 // sum for stddev
 	for _, lr := range lrs {
 		if lr.Ddir == 0 {
 			rrec, rcnt = rbkt.updateBucket(rrec, rcnt, ld.RRecSm, lr)
@@ -268,8 +262,14 @@ func (lrs LatRecs) Summarize(summary_size int, histogram_size int) (ld LatData) 
 		dsum += math.Pow((lr.Val - ld.Average), 2)
 	}
 
+	ld.updatePercentiles(lvs, dsum)
+
+	return
+}
+
+func (ld *LatData) updatePercentiles(lvs []float64, dsum float64) {
 	// finish computing variance & standard deviation
-	ld.Variance = dsum / float64(ld.Count)
+	ld.Variance = dsum / float64(ld.Samples)
 	ld.Stddev = math.Sqrt(ld.Variance)
 
 	// sort []float64 list then assign percentiles
@@ -289,8 +289,6 @@ func (lrs LatRecs) Summarize(summary_size int, histogram_size int) (ld LatData) 
 	ld.P90 = lvs[pctl_idx(90)]
 	ld.P95 = lvs[pctl_idx(95)]
 	ld.P99 = lvs[pctl_idx(99)]
-
-	return
 }
 
 // write the latdata + CSV summaries to the specified path + filename fragment
@@ -339,7 +337,7 @@ func (bucket LatRecs) updateBucket(bktidx int, hgidx int, hgram LatRecs, lr *Lat
 	// advance the bucket index, stay on the same summary index
 	if bktidx < len(bucket) {
 		return bktidx, hgidx
-	// bucket is full, sum it & advance to the next histogram entry
+		// bucket is full, sum it & advance to the next histogram entry
 	} else {
 		var ptotal, ttotal float64
 		for _, v := range bucket {

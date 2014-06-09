@@ -30,7 +30,7 @@ func printSummary(summary LatData) {
 	// TODO: consider printing only integers?
 	fmt.Printf("Min:                %g\n", summary.Min)
 	fmt.Printf("Max:                %g\n", summary.Max)
-	fmt.Printf("Count:              %d\n", summary.Count)
+	fmt.Printf("Samples:            %d\n", summary.Samples)
 	fmt.Printf("Sum:                %f\n", summary.Sum)
 	fmt.Printf("Average:            %g\n", summary.Average)
 	fmt.Printf("Standard Deviation: %g\n", summary.Stddev)
@@ -38,11 +38,12 @@ func printSummary(summary LatData) {
 	fmt.Printf("Begin Timestamp:    %g\n", summary.BeginTs)
 	fmt.Printf("End Timestamp:      %g\n", summary.EndTs)
 	fmt.Printf("Elapsed Time:       %g\n", summary.ElapsedTime)
-	fmt.Printf("P1:  %7.3f P5:  %7.3f P10: %7.3f\n", summary.P1, summary.P5, summary.P10)
-	fmt.Printf("P25: %7.3f P50: %7.3f P75: %7.3f\n", summary.P25, summary.P50, summary.P75)
-	fmt.Printf("P90: %7.3f P95: %7.3f P99: %7.3f\n", summary.P90, summary.P95, summary.P99)
+	fmt.Printf("\n")
+	fmt.Printf("P1:  %8.2f P5:  %8.2f P10: %8.2f\n", summary.P1, summary.P5, summary.P10)
+	fmt.Printf("P25: %8.2f P50: %8.2f P75: %8.2f\n", summary.P25, summary.P50, summary.P75)
+	fmt.Printf("P90: %8.2f P95: %8.2f P99: %8.2f\n", summary.P90, summary.P95, summary.P99)
 
-	fmt.Printf("Histogram:       ")
+	fmt.Printf("\nHistogram:       ")
 	for _, lr := range summary.Histogram {
 		fmt.Printf("%8.2f ", lr.Val)
 	}

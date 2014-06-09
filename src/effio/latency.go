@@ -201,8 +201,6 @@ func (lrs LatRecs) Summarize(summary_size int, histogram_size int) (ld LatData) 
 	var arec, acnt, ahgrec, ahgcnt int                            // indexes into buckets/output
 	abkt := make(LatRecs, bucketSize(summary_size, len(lrs)))     // summary bucket
 	ahgbkt := make(LatRecs, bucketSize(histogram_size, len(lrs))) // histogram bucket
-	fmt.Printf("len(abkt): %d, summary_size: %d, len(lrs): %d\n", len(abkt), summary_size, len(lrs))
-	fmt.Printf("len(ahgbkt): %d, histogram_size: %d, len(lrs): %d\n", len(ahgbkt), histogram_size, len(lrs))
 
 	// list of values, to be sorted for getting percentiles
 	lvs := make([]float64, len(lrs))
@@ -279,7 +277,6 @@ func (lrs LatRecs) Summarize(summary_size int, histogram_size int) (ld LatData) 
 	pctl_idx := func(pc float64) int {
 		idx := math.Floor(float64(len(lvs))*(pc/100) + 0.5)
 		out := int(idx)
-		//fmt.Printf("pctl_idx(%f) = %f -> lvs[%d]\n", pc, idx, out)
 		return out
 	}
 
@@ -357,7 +354,6 @@ func (bucket LatRecs) updateBucket(bktidx int, hgidx int, hgram LatRecs, lr *Lat
 			Bsz:  lr.Bsz,
 		}
 
-		fmt.Printf("hgram[%d/%d] = %v\n", hgidx, len(hgram)-1, nlr)
 		hgram[hgidx] = &nlr
 
 		// bucket is now summed & stored at hgidx, reset the bucket index to 0

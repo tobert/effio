@@ -38,21 +38,21 @@ func printSummary(summary LatData) {
 	fmt.Printf("Begin Timestamp:    %g\n", summary.BeginTs)
 	fmt.Printf("End Timestamp:      %g\n", summary.EndTs)
 	fmt.Printf("Elapsed Time:       %g\n", summary.ElapsedTime)
-	fmt.Printf("P1:  %g P5:  %g P10: %g\n", summary.P1, summary.P5, summary.P10)
-	fmt.Printf("P25: %g P50: %g P75: %g\n", summary.P25, summary.P50, summary.P75)
-	fmt.Printf("P90: %g P95: %g P99: %g\n", summary.P90, summary.P95, summary.P99)
+	fmt.Printf("P1:  %7.3f P5:  %7.3f P10: %7.3f\n", summary.P1, summary.P5, summary.P10)
+	fmt.Printf("P25: %7.3f P50: %7.3f P75: %7.3f\n", summary.P25, summary.P50, summary.P75)
+	fmt.Printf("P90: %7.3f P95: %7.3f P99: %7.3f\n", summary.P90, summary.P95, summary.P99)
 
-	fmt.Printf("Histogram: ")
+	fmt.Printf("Histogram:       ")
 	for _, lr := range summary.Histogram {
-		fmt.Printf("%g ", lr.Val)
+		fmt.Printf("%8.2f ", lr.Val)
 	}
-	fmt.Printf("\nRead Histogram: ")
+	fmt.Printf("\nRead Histogram:  ")
 	for _, lr := range summary.RHistogram {
-		fmt.Printf("%g ", lr.Val)
+		fmt.Printf("%8.2f ", lr.Val)
 	}
 	fmt.Printf("\nWrite Histogram: ")
 	for _, lr := range summary.WHistogram {
-		fmt.Printf("%g ", lr.Val)
+		fmt.Printf("%8.2f ", lr.Val)
 	}
 	fmt.Printf("\n")
 	// leave trim out for now, none of my tests use it yet

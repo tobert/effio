@@ -58,6 +58,8 @@ func (test *Test) Run(spath string) {
 		log.Fatalf("Could not locate an fio command in PATH: %s\n", err)
 	}
 
+	stopstats := CollectDiskstats(path.Join(tpath, "diskstats.csv"), test.Device)
+
 	cmd := exec.Command(fioPath, test.FioArgs...)
 	before := time.Now()
 
@@ -78,6 +80,8 @@ func (test *Test) Run(spath string) {
 	}
 
 	err = cmd.Wait()
+
+	close(stopstats) // stop the diskstats collection
 
 	// TODO: figure out if this is worth recording and record it
 	elapsed := time.Since(before)

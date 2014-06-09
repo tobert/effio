@@ -44,7 +44,7 @@ type Diskstats []Diskstat
 // finish := CollectDiskstats("/tmp/test.dat", 8, 49)
 // do stuff ..
 // close(finish)
-func CollectDiskstats(fname string, d *Device) chan struct{} {
+func CollectDiskstats(fname string, d Device) chan struct{} {
 	finish := make(chan struct{})
 	major, minor := d.devNums()
 
@@ -182,8 +182,9 @@ func (d *Device) devNums() (major, minor uint) {
 		log.Fatalf("Could not stat device file: %s\n", err)
 	}
 	native := fi.Sys().(*syscall.Stat_t)
-	major = uint(((native.Rdev >> 8) & 0xfff) | ((native.Rdev >> 32) & ^0xfff))
-	minor = uint((native.Rdev & 0xff) | ((native.Rdev >> 12) & ^0xff))
+	// http://stackoverflow.com/questions/4309882/device-number-in-stat-command-output
+	major = uint(native.Rdev) >> 8 & 0xff
+	minor = uint(native.Rdev) & 0xff
 
 	return
 }

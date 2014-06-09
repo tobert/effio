@@ -114,7 +114,6 @@ func (g *Group) barChart(logscale bool) {
 		p.Legend.Add(fmt.Sprintf("read: %s ", test.Device.Name), bars)
 	}
 
-
 	if logscale {
 		p.Y.Scale = plot.LogScale
 		p.Y.Label.Text = "Latency (usec log(10))"

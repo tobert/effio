@@ -10,7 +10,6 @@ import (
 	"log"
 	"os"
 	"path"
-	"runtime"
 )
 
 type Group struct {
@@ -57,10 +56,9 @@ func (suite *Suite) GraphAll(suite_path string, out_path string) {
 				test.LatRecs = LoadCSV(test.LatLogPath(g.Grouping.SuitePath))
 				test.LatData = test.LatRecs.Summarize(10000, 10)
 
-				// release the memory used by loading the raw data then force a GC
+				// release the memory used by loading the raw data
 				// otherwise some of the CSV files easily OOM a 16G machine
 				test.LatRecs = nil
-				runtime.GC()
 
 				test.LatData.WriteFiles(gg.OutPath, fmt.Sprintf("%s-%s", gg.Name, g.Name))
 			}

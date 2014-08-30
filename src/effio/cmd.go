@@ -20,7 +20,7 @@ type Cmd struct {
 // Usage: cmd := effio.NewCmd(os.Args)
 func NewCmd(args []string) (cmd Cmd) {
 	if len(args) < 2 {
-		cmd.Usage("subcommand required: make|run|inventory|mountall|graph\n")
+		cmd.Usage("subcommand required: run|inventory\n")
 	}
 
 	cmd.Process = args[0]
@@ -44,16 +44,10 @@ func NewCmd(args []string) (cmd Cmd) {
 
 func (cmd *Cmd) Run() {
 	switch cmd.Command {
-	case "make":
-		cmd.MakeSuite()
 	case "run":
 		cmd.RunSuite()
 	case "inventory":
 		cmd.Inventory()
-	case "mountall":
-		cmd.Mountall()
-	case "graph":
-		cmd.GraphSuite()
 	case "summarize":
 		cmd.SummarizeCSV()
 	case "help", "-h", "-help", "--help":

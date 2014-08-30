@@ -42,18 +42,21 @@ func NewCmd(args []string) (cmd Cmd) {
 	return cmd
 }
 
-func (cmd *Cmd) Run() {
+func (cmd *Cmd) RunCommand() {
 	switch cmd.Command {
 	case "make":
-		cmd.MakeSuite()
+		msc := cmd.ToMakeCmd()
+		msc.Run()
 	case "run":
-		cmd.RunSuite()
+		rc := cmd.ToRunCmd()
+		rc.Run()
 	case "inventory":
 		cmd.Inventory()
 	case "mountall":
 		cmd.Mountall()
 	case "graph":
-		cmd.GraphSuite()
+		gsc := cmd.ToGraphSuiteCmd()
+		gsc.Run()
 	case "summarize":
 		cmd.SummarizeCSV()
 	case "help", "-h", "-help", "--help":

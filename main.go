@@ -18,5 +18,5 @@ import (
 
 func main() {
 	cmd := effio.NewCmd(os.Args)
-	cmd.Run()
+	cmd.RunCommand()
 }

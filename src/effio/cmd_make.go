@@ -7,39 +7,41 @@ import (
 	"path/filepath"
 )
 
+type MakeCmd struct {
+	SuiteCmd
+	DevFlag string
+	FioFlag string
+}
+
+func (cmd *Cmd) ToMakeCmd() (mc MakeCmd) {
+
+}
+
 // effio make -dev <file.json> -fio <dir> -path <dir>
-func (cmd *Cmd) MakeSuite() {
-	// the default device filename is <hostname>.json
+func (mc *MakeCmd) Run() {
+	// the default device filename is conf/machines/<hostname>.json
 	devfile, err := os.Hostname()
 	if err != nil {
 		devfile = "devices"
 	}
-	devfile = fmt.Sprintf("%s.json", devfile)
+	devfile = fmt.Sprintf("conf/machines/%s.json", devfile)
 
-	// parse subcommand arguments
-	var idFlag, devFlag, fioFlag, pathFlag string
-	fs := cmd.FlagSet
-	fs.StringVar(&idFlag, "id", "", "Id of the test suite")
-	fs.StringVar(&devFlag, "dev", devfile, "JSON file containing device metadata")
-	fs.StringVar(&fioFlag, "fio", "fio_configs/", "directory containing fio config templates")
-	fs.StringVar(&pathFlag, "path", "./suites/", "generated suite is written to this path")
-	fs.Parse(cmd.Args)
+	mc.FlagSet.StringVar(&mc.DevFlag, "dev", devfile, "JSON file containing device metadata")
+	mc.FlagSet.StringVar(&mc.FioFlag, "fio", "conf/default", "directory containing fio config templates")
 
-	if idFlag == "" {
-		fs.Usage()
-	}
+	mc.ParseArgs()
 
 	// load device data from json
-	devs := LoadDevicesFile(mustAbs(devFlag))
+	devs := LoadDevicesFile(mustAbs(mc.DevFlag))
 
 	// load the fio config templates into memory
-	templates := LoadFioConfDir(mustAbs(fioFlag))
+	templates := LoadFioConfDir(mustAbs(mc.FioFlag))
 
 	// use an absolute directory for pathFlag
-	outDir := mustAbs(pathFlag)
+	outDir := mustAbs(mc.PathFlag)
 
 	// build up a test suite of devs x templates
-	suite := NewSuite(idFlag)
+	suite := NewSuite(mc.IdFlag)
 	suite.Populate(devs, templates)
 	suite.WriteAll(outDir)
 }

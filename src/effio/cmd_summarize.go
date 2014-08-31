@@ -1,59 +1,72 @@
 package effio
 
 import (
+	"encoding/json"
 	"fmt"
-	"log"
+	"os"
 )
 
 func (cmd *Cmd) SummarizeCSV() {
-	var samplesFlag, hbktFlag int
+	var hbktFlag int
 	var inFlag, outFlag string
+	var jsonFlag bool
 
 	// TODO: add -json flag
 	fs := cmd.FlagSet
 	fs.StringVar(&inFlag, "in", "", "CSV file to load")
 	fs.IntVar(&hbktFlag, "hbkt", 10, "number of histogram buckets")
 	fs.StringVar(&outFlag, "out", "", "CSV file to write")
-	fs.IntVar(&samplesFlag, "samples", 1, "Number of samples to write to the new file.")
+	fs.BoolVar(&jsonFlag, "json", false, "Print JSON instead of human-readable text.")
 	fs.Parse(cmd.Args)
 
-	if samplesFlag < 1 {
-		log.Fatalf("-samples must be >= 1")
-	}
+	recs := LoadFioLatlog(inFlag)
+	smry := recs.Summarize(hbktFlag)
 
-	recs := LoadCSV(inFlag)
-	summary := recs.Summarize(samplesFlag, hbktFlag)
-	printSummary(summary)
+	if jsonFlag {
+		printJson(smry)
+	} else {
+		printSummary(smry)
+	}
 }
 
-func printSummary(summary LatData) {
-	// TODO: consider printing only integers?
-	fmt.Printf("Min:                %g\n", summary.Min)
-	fmt.Printf("Max:                %g\n", summary.Max)
-	fmt.Printf("Samples:            %d\n", summary.Samples)
-	fmt.Printf("Sum:                %f\n", summary.Sum)
-	fmt.Printf("Average:            %g\n", summary.Average)
-	fmt.Printf("Standard Deviation: %g\n", summary.Stddev)
-	fmt.Printf("Variance:           %g\n", summary.Variance)
-	fmt.Printf("Begin Timestamp:    %g\n", summary.BeginTs)
-	fmt.Printf("End Timestamp:      %g\n", summary.EndTs)
-	fmt.Printf("Elapsed Time:       %g\n", summary.ElapsedTime)
-	fmt.Printf("\n")
-	fmt.Printf("P1:  %8.2f P5:  %8.2f P10: %8.2f\n", summary.P1, summary.P5, summary.P10)
-	fmt.Printf("P25: %8.2f P50: %8.2f P75: %8.2f\n", summary.P25, summary.P50, summary.P75)
-	fmt.Printf("P90: %8.2f P95: %8.2f P99: %8.2f\n", summary.P90, summary.P95, summary.P99)
+func printJson(smry LatSmry) {
+	js, err := json.MarshalIndent(smry, "", "\t")
+	if err != nil {
+		fmt.Printf("Failed to encode summary data as JSON: %s\n", err)
+		os.Exit(1)
+	}
+	js = append(js, byte('\n'))
 
-	fmt.Printf("\nHistogram:       ")
-	for _, lr := range summary.Histogram {
-		fmt.Printf("%8.2f ", lr.Val)
+	os.Stdout.Write(js)
+}
+
+func printSummary(smry LatSmry) {
+	fmt.Printf("Min:                %d\n", smry.Min)
+	fmt.Printf("Max:                %d\n", smry.Max)
+	fmt.Printf("Count:              %d\n", smry.Count)
+	fmt.Printf("Sum:                %d\n", smry.Sum)
+	fmt.Printf("Average:            %g\n", smry.Average)
+	fmt.Printf("Standard Deviation: %g\n", smry.Stdev)
+	fmt.Printf("Begin Timestamp:    %d\n", smry.BeginTs)
+	fmt.Printf("End Timestamp:      %d\n", smry.EndTs)
+	fmt.Printf("Elapsed Time:       %d\n", smry.ElapsedTime)
+	fmt.Printf("\n")
+	fmt.Printf("P1:    % 8d P5:     % 8d P10:     % 8d\n", smry.Pcntl[1].Val, smry.Pcntl[5].Val, smry.Pcntl[10].Val)
+	fmt.Printf("P25:   % 8d P50:    % 8d P75:     % 8d\n", smry.Pcntl[25].Val, smry.Pcntl[50].Val, smry.Pcntl[75].Val)
+	fmt.Printf("P90:   % 8d P95:    % 8d P99:     % 8d\n", smry.Pcntl[90].Val, smry.Pcntl[95].Val, smry.Pcntl[99].Val)
+	fmt.Printf("P99.9: % 8d P99.99: % 8d P99.999: % 8d\n", smry.Pcntl[99.9].Val, smry.Pcntl[99.99].Val, smry.Pcntl[99.999].Val)
+
+	fmt.Printf("\nAll Histogram[% 4d]:   ", len(smry.Histogram))
+	for _, bkt := range smry.Histogram {
+		fmt.Printf("% 10d ", bkt.Average)
 	}
-	fmt.Printf("\nRead Histogram:  ")
-	for _, lr := range summary.RHistogram {
-		fmt.Printf("%8.2f ", lr.Val)
+	fmt.Printf("\nRead Histogram[% 4d]:  ", len(smry.RHistogram))
+	for _, bkt := range smry.RHistogram {
+		fmt.Printf("% 10d ", bkt.Average)
 	}
-	fmt.Printf("\nWrite Histogram: ")
-	for _, lr := range summary.WHistogram {
-		fmt.Printf("%8.2f ", lr.Val)
+	fmt.Printf("\nWrite Histogram[% 4d]: ", len(smry.WHistogram))
+	for _, bkt := range smry.WHistogram {
+		fmt.Printf("% 10d ", bkt.Average)
 	}
 	fmt.Printf("\n")
 	// leave trim out for now, none of my tests use it yet

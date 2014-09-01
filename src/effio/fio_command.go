@@ -52,6 +52,16 @@ func (fcmd *FioCommand) Run() {
 		log.Fatalf("Could not locate an fio command in PATH: %s\n", err)
 	}
 
+	unmount := false
+	if fcmd.Device.Device != "" && fcmd.Device.Mountpoint != "" {
+		err := fcmd.Device.Mount()
+		if err != nil {
+			log.Printf(fcmd.Device.ToJson())
+			log.Fatalf("Could not mount device '%s': %s\n", fcmd.Device.Name, err)
+		}
+		unmount = true
+	}
+
 	// start collecting data from /proc/diskstats in a goroutine
 	stopstats := CollectDiskstats(path.Join(fcmd.Path, "diskstats.csv"), fcmd.Device)
 
@@ -78,6 +88,14 @@ func (fcmd *FioCommand) Run() {
 
 	// stop the diskstats collection goroutine
 	close(stopstats)
+
+	if unmount {
+		err = fcmd.Device.Umount()
+		if err != nil {
+			log.Printf(fcmd.Device.ToJson())
+			log.Fatalf("Could not unmount device '%s': %s\n", fcmd.Device.Name)
+		}
+	}
 
 	// it might be OK to let 1 fio command out of a suite fail?
 	if err != nil {

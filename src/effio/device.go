@@ -55,6 +55,40 @@ func (d *Device) IsMounted() (bool, error) {
 	}
 }
 
+func (d *Device) Mount() error {
+	if d.Device == "" {
+		return errors.New("'device' must be defined in device json for mounting support")
+	}
+	if d.Mountpoint == "" {
+		return errors.New("'mountpoint' must be defined in device json for mounting support")
+	}
+	if d.Filesystem == "" {
+		return errors.New("'filesystem' must be defined in device json for mounting support")
+	}
+
+	if err := os.MkdirAll(d.Mountpoint, 0755); err != nil {
+		return err
+	}
+
+	var flags uintptr
+	flags = syscall.MS_NOATIME | syscall.MS_NODIRATIME
+	data := ""
+
+	return syscall.Mount(d.Device, d.Mountpoint, d.Filesystem, uintptr(flags), data)
+}
+
+func (d *Device) Umount() error {
+	return syscall.Unmount(d.Mountpoint, 0)
+}
+
+func (d *Device) ToJson() string {
+	js, err := json.MarshalIndent(d, "  ", "  ")
+	if err != nil {
+		log.Fatalf("Failed to encode device as JSON: %s\n", err)
+	}
+	return string(js)
+}
+
 // implement the sort interface
 func (devs Devices) Len() int {
 	return len(devs)

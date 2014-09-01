@@ -149,24 +149,5 @@
     "blocksize": 4096,
     "cache": 0,
     "rpm": 0
-  },
-  {
-    "name": "seagate_momentus_xt_sshd",
-    "mountpoint": "/mnt/effio/seagate_momentus_xt_sshd",
-    "notes": "8GB SSD, 500GB HDD",
-    "ignore": false,
-    "device": "/dev/disk/by-id/wwn-0x5000c5006e3f7663-part1",
-    "filesystem": "ext4",
-    "brand": "Seagate",
-    "series": "ST500LM000",
-    "datasheet": "http://www.seagate.com/staticfiles/docs/pdf/datasheet/disc/laptop-sshd-kit-ds-1784-4-1401us.pdf",
-    "capacity": 500107862016,
-    "rotational": true,
-    "interface": "SATA",
-    "hba": "USB3",
-    "media": "Hybrid",
-    "blocksize": 4096,
-    "cache": 64,
-    "rpm": 5400 
   }
 ]

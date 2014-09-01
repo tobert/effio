@@ -12,45 +12,39 @@ import (
 	"time"
 )
 
-// test data generated on the fly based on info above
-type Test struct {
-	Name        string      // name to be used in tests, files, etc.
-	Dir         string      // directory for writing configs, logs, etc.
-	FioTestName string      // name of the fio test (without the device name)
-	FioArgs     []string    // the arguments to the fio command for the test
-	FioFile     string      // generated fio config file name
-	FioJson     string      // generated fio json output file name
-	FioBWLog    string      // filename for the bandwidth log
-	FioLatLog   string      // filename for the latency log
-	FioIopsLog  string      // filename for the iops log
-	TestJson    string      // dump the test data (this struct) to this file
-	CmdFile     string      // write the exact fio command used to this file
-	FioConfTmpl FioConfTmpl // template info struct
-	Device      Device      // device info struct
-	// allow attaching raw data to a test, potentially huge, don't serialize
-	LatRecs LatRecs `json:"-"`
-	Summary LatSmry `json:"summary"`
-	// attach the suite to the test, creates a cycle, don't serialize
-	Suite *Suite `json:"-"`
+// FioCommand: everything to do with running fio benchmarks.
+// The goal is to capture every detail of how the benchmark was generated
+// and eventually run so it can be exported with all results.
+type FioCommand struct {
+	Name        string      `json:"name"`          // name to be used in tests, files, etc.
+	Path        string      `json:"path"`          // directory for writing configs, logs, etc.
+	StartTS     time.Time   `json:"start_ts"`      // timestamp right before starting fio
+	EndTS       time.Time   `json:"end_ts"`        // timestamp right after the process exits
+	FioArgs     []string    `json:"fio_args"`      // the arguments to the fio command for the test
+	FioFile     string      `json:"fio_file"`      // generated fio config file name
+	FioJson     string      `json:"fio_json"`      // generated fio json output file name
+	FioBWLog    string      `json:"fio_bw_log"`    // filename for the bandwidth log
+	FioLatLog   string      `json:"fio_lat_log"`   // filename for the latency log
+	FioIopsLog  string      `json:"fio_iops_log"`  // filename for the iops log
+	CmdJson     string      `json:"command_json"`  // dump of the fio command data (this struct)
+	CmdScript   string      `json:"command_sh"`    // a shell script with the fio command in it
+	FioConfTmpl FioConfTmpl `json:"fio_conf_tmpl"` // template info struct
+	Device      Device      `json:"device"`        // device info struct
+	Suite       *Suite      `json:"-"`             // don't serialize to JSON
 }
 
-// has a sort interface impl near EOF, sorts by test.Name
-type Tests []*Test
+// FioCommands: A sortable list of FioCommand
+type FioCommands []*FioCommand
 
-func (test *Test) Run(spath string) {
-	tpath := path.Join(spath, test.Dir)
+func (fcs FioCommands) Len() int           { return len(fcs) }
+func (fcs FioCommands) Swap(i, j int)      { fcs[i], fcs[j] = fcs[j], fcs[i] }
+func (fcs FioCommands) Less(i, j int) bool { return fcs[i].Name < fcs[j].Name }
 
-	// make sure the mountpoint is a mountpoint
-	// this avoids accidentally benchmarking the root volume
-	// the easy way around this for existing mounts is to use bind mounts
-	if ok, err := test.Device.IsMounted(); !ok {
-		log.Fatalf("Device '%s' does not appear to be mounted on '%s': %s\n",
-			test.Device.Name, test.Device.Mountpoint, err)
-	}
-
-	err := os.Chdir(tpath)
+// Run() an fio benchmark
+func (fcmd *FioCommand) Run() {
+	err := os.Chdir(fcmd.Path)
 	if err != nil {
-		log.Fatalf("Could not chdir to '%s': %s\n", tpath, err)
+		log.Fatalf("Could not chdir to output path '%s': %s\n", fcmd.Path, err)
 	}
 
 	fioPath, err := exec.LookPath("fio")
@@ -58,46 +52,44 @@ func (test *Test) Run(spath string) {
 		log.Fatalf("Could not locate an fio command in PATH: %s\n", err)
 	}
 
-	stopstats := CollectDiskstats(path.Join(tpath, "diskstats.csv"), test.Device)
+	// start collecting data from /proc/diskstats in a goroutine
+	stopstats := CollectDiskstats(path.Join(fcmd.Path, "diskstats.csv"), fcmd.Device)
 
-	cmd := exec.Command(fioPath, test.FioArgs...)
-	before := time.Now()
-
+	// set up the process
+	cmd := exec.Command(fioPath, fcmd.FioArgs...)
 	stderr, err := cmd.StderrPipe()
 	if err != nil {
 		log.Fatal(err)
 	}
 
+	// start running the process
 	if err := cmd.Start(); err != nil {
-		log.Fatalf("Could not run '%s %s': %s\n", fioPath, strings.Join(test.FioArgs, " "))
+		log.Fatalf("Could not run '%s %s': %s\n", fioPath, strings.Join(fcmd.FioArgs, " "))
 	}
 
 	// grab stderr in case something goes wrong
-	// TODO: switch this to io.Copy?
 	errors, err := ioutil.ReadAll(stderr)
 	if err != nil {
 		log.Fatal(err)
 	}
 
+	// blocking wait for the process to exit
 	err = cmd.Wait()
 
-	close(stopstats) // stop the diskstats collection
-
-	// TODO: figure out if this is worth recording and record it
-	elapsed := time.Since(before)
+	// stop the diskstats collection goroutine
+	close(stopstats)
 
 	// it might be OK to let 1 fio command out of a suite fail?
 	if err != nil {
 		log.Printf(string(errors))
-		log.Fatalf("Command '%s %s' failed: %s\n", fioPath, strings.Join(test.FioArgs, " "), err)
+		log.Fatalf("Command '%s %s' failed: %s\n", fioPath, strings.Join(fcmd.FioArgs, " "), err)
 	}
-	log.Printf("Elapsed: %s\n", elapsed)
 }
 
-// DumpFioFile writes the fio configuration file.
-// <basePath>/<suite id>/<generated test name>/config.fio
-func (test *Test) WriteFioFile(basePath string) {
-	outfile := path.Join(basePath, test.Dir, test.FioFile)
+// WriteFioConf() writes the fio configuration file.
+// <-path path>/<suite.Name>/<generated test name>/config.fio
+func (fcmd *FioCommand) WriteFioConf() {
+	outfile := path.Join(fcmd.Path, fcmd.FioFile)
 
 	fd, err := os.OpenFile(outfile, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
 	if err != nil {
@@ -105,18 +97,18 @@ func (test *Test) WriteFioFile(basePath string) {
 	}
 	defer fd.Close()
 
-	err = test.FioConfTmpl.tmpl.Execute(fd, test)
+	err = fcmd.FioConfTmpl.tmpl.Execute(fd, fcmd)
 	if err != nil {
 		log.Fatalf("Template execution failed for '%s': %s\n", outfile, err)
 	}
 }
 
-// WriteTestJson dumps the suite data structure to a JSON file for posterity (and debugging).
-// <basePath>/<suite id>/<generated test name>/test.json
-func (test *Test) WriteTestJson(basePath string) {
-	outfile := path.Join(basePath, test.Dir, test.TestJson)
+// WriteFcmdJson() dumps the fio command data to a JSON file
+// <-path path>/<suite.Name>/<fcmd.Name>/fio_command.json
+func (fcmd *FioCommand) WriteFcmdJson() {
+	outfile := path.Join(fcmd.Path, fcmd.CmdJson)
 
-	js, err := json.MarshalIndent(test, "", "  ")
+	js, err := json.MarshalIndent(fcmd, "", "  ")
 	if err != nil {
 		log.Fatalf("Failed to encode test data as JSON: %s\n", err)
 	}
@@ -130,10 +122,10 @@ func (test *Test) WriteTestJson(basePath string) {
 	}
 }
 
-// WriteCmdFile writes the command to a file as a mini shell script.
-// <basePath>/<suite id>/<test name>/run.sh
-func (test *Test) WriteCmdFile(basePath string) {
-	outfile := path.Join(basePath, test.Dir, test.CmdFile)
+// WriteCmdScript() writes the command to a file as a mini shell script.
+// <-path path>/<suite.Name>/<fcmd.Name>/run.sh
+func (fcmd *FioCommand) WriteCmdScript() {
+	outfile := path.Join(fcmd.Path, fcmd.CmdScript)
 
 	fd, err := os.OpenFile(outfile, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0755)
 	if err != nil {
@@ -146,46 +138,30 @@ func (test *Test) WriteCmdFile(basePath string) {
 	if err != nil {
 		fioPath = "fio"
 	}
-	fmt.Fprintf(fd, "#!/bin/bash -x\n%s %s\n", fioPath, strings.Join(test.FioArgs, " "))
+	fmt.Fprintf(fd, "#!/bin/bash -x\n%s %s\n", fioPath, strings.Join(fcmd.FioArgs, " "))
 }
 
 // Returns a fully-qualified path to the lat_lat.log CSV file
-func (test *Test) LatLogPath(suite_path string) string {
-	tpath := path.Join(suite_path, test.Dir)
-
+func (fcmd *FioCommand) LatLogPath() string {
 	// fio insists on adding the _lat.log and I can't find an option to disable it
-	return path.Join(tpath, fmt.Sprintf("%s_lat.log", test.FioLatLog))
+	return path.Join(fcmd.Path, fmt.Sprintf("%s_lat.log", fcmd.FioLatLog))
 }
 
 // get the size of the latency log, return 0 on errors (e.g. missing)
-func (test *Test) LatLogSize(suite_path string) int64 {
-	fi, err := os.Stat(test.LatLogPath(suite_path))
+func (fcmd *FioCommand) LatLogSize() int64 {
+	fi, err := os.Stat(fcmd.LatLogPath())
 	if err != nil {
 		return 0
 	}
 	return fi.Size()
 }
 
-// get the size of output.json, return 0 on errors (e.g. missing)
-func (test *Test) FioJsonSize(suite_path string) int64 {
-	fpath := path.Join(suite_path, test.Dir, test.FioJson)
+// FioJsonSize() gets the size of output.json, returns 0 on errors
+func (fcmd *FioCommand) FioJsonSize() int64 {
+	fpath := path.Join(fcmd.Path, fcmd.FioJson)
 	fi, err := os.Stat(fpath)
 	if err != nil {
 		return 0
 	}
 	return fi.Size()
-}
-
-// implement the sort for Tests
-func (t Tests) Len() int {
-	return len(t)
-}
-
-func (t Tests) Swap(i, j int) {
-	t[i], t[j] = t[j], t[i]
-}
-
-// sort by test Name lexically
-func (t Tests) Less(i, j int) bool {
-	return t[i].Name < t[j].Name
 }

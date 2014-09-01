@@ -17,68 +17,59 @@ import (
 	"log"
 	"os"
 	"path"
+	"path/filepath"
 	"time"
 )
 
-// a test suite has a global id that is also used as a directory name
 type Suite struct {
-	Id        string
-	Created   time.Time // time the test was generated / run
-	EffioCmd  []string  // os.Args() of the effio command used to generate the suite
-	SuiteJson string
-	Tests     Tests
+	Name        string      // a name given to the suite on the command line
+	Path        string      // path for writing benchmark data out
+	StartTS     time.Time   // time the suite was started
+	EndTS       time.Time   // time the suite finished
+	EffioCmd    []string    // os.Args() of the effio command used
+	SuiteJson   string      // metadata about the suite of tests
+	FioCommands FioCommands // fio commands run/to be run
 }
 
 // NewSuite returns an initialized Suite with the given
 // id and the Created field set to the current time.
-func NewSuite(id string) Suite {
-	now := time.Now()
-	fname := path.Join(id, "suite.json")
-	return Suite{id, now, os.Args, fname, Tests{}}
-}
-
-// LoadSuiteJson loads a suite from JSON. Argument is a path to a
-// JSON file that has a complete suite's information in it.
-func LoadSuiteJson(spath string) (suite Suite) {
-	data, err := ioutil.ReadFile(spath)
+func NewSuite(name string, pathArg string) Suite {
+	absPath, err := filepath.Abs(pathArg)
 	if err != nil {
-		log.Fatalf("Could not read suite JSON file '%s': %s", spath, err)
+		log.Fatalf("Could not determine the absolute path of '%s': %s\n", pathArg, err)
 	}
 
-	err = json.Unmarshal(data, &suite)
-	if err != nil {
-		log.Fatalf("Could not parse suite JSON in file '%s': %s", spath, err)
-	}
+	spath := path.Join(absPath, name)
+	fname := path.Join(absPath, name, "suite.json")
 
-	return suite
+	return Suite{
+		Name:        name,
+		Path:        spath,
+		StartTS:     time.Now(),
+		EffioCmd:    os.Args,
+		SuiteJson:   fname,
+		FioCommands: FioCommands{},
+	}
 }
 
 // Run the whole suite one at a time letting fio write its output into
 // the suite directories. Repeated runs will overwrite files; behavior
 // is dependent on what fio does with existing files for now.
-func (suite *Suite) Run(spath string, rerun bool) {
-	wd, err := os.Getwd()
-	if err != nil {
-		log.Fatalf("Could not get working directory: %s\n", err)
-	}
-
-	for _, test := range suite.Tests {
-		// rerun = true means all tests get re-run
-		// when false, only tests with missing or empty output.json get run
+func (suite *Suite) Run(rerun bool) {
+	for _, fcmd := range suite.FioCommands {
+		// rerun = true means all benchmarks get re-run
+		// when false, only benchmarks with missing or empty output.json get run
 		if !rerun {
-			if test.FioJsonSize(spath) > 0 {
+			if fcmd.FioJsonSize() > 0 {
 				continue
 			}
 		}
-
-		log.Printf("Running test %s in directory %s ...\n", test.Name, test.Dir)
-		test.Run(path.Join(wd, spath))
+		fcmd.Run()
 	}
 }
 
-// Populate the test suite with the (cartesian) product of
-// Devices x FioConfTmpls to get all combinations.
-// This does not modify the filesystem.
+// Populate the suite with the (cartesian) product of Devices x FioConfTmpls
+// to get all combinations (in memory).
 func (suite *Suite) Populate(dl Devices, ftl FioConfTmpls) {
 	for _, tp := range ftl {
 		for _, dev := range dl {
@@ -86,55 +77,51 @@ func (suite *Suite) Populate(dl Devices, ftl FioConfTmpls) {
 				continue
 			}
 
-			// I suppose these conventions could be defined higher up in the call stack
+			// These conventions could be defined higher up in the call stack
 			// but this makes things a little easier to modify down the road.
-			testName := fmt.Sprintf("%s-%s", dev.Name, tp.Name)
-			testDir := path.Join(suite.Id, testName)
+			fcmdName := fmt.Sprintf("%s-%s", dev.Name, tp.Name)
+			fcmdPath := path.Join(suite.Path, fcmdName)
 			args := []string{"--output-format=json", "--output=output.json", "config.fio"}
 
 			// fio adds _$type.log to log file names so only provide the base name
-			test := Test{
-				Name:        testName,
-				Dir:         testDir,
-				FioTestName: tp.Name,
+			fcmd := FioCommand{
+				Name:        fcmdName,
+				Path:        fcmdPath,
 				FioArgs:     args,
 				FioFile:     "config.fio",
 				FioJson:     "output.json",
 				FioBWLog:    "bw",
 				FioLatLog:   "lat",
 				FioIopsLog:  "iops",
-				TestJson:    "test.json",
-				CmdFile:     "run.sh",
+				CmdJson:     "test.json",
+				CmdScript:   "run.sh",
 				FioConfTmpl: tp,
 				Device:      dev,
-				Suite:       suite,
 			}
 
-			suite.Tests = append(suite.Tests, &test)
+			suite.FioCommands = append(suite.FioCommands, &fcmd)
 		}
 	}
 }
 
-// WriteAll(path) writes a suite out to a set of directories and files.
-func (suite *Suite) WriteAll(basePath string) {
-	suite.mkdirAll(basePath)
+// WriteAll() writes a suite out to a set of directories and files.
+func (suite *Suite) WriteAll() {
+	suite.mkdirAll()
 
-	suite.WriteSuiteJson(basePath)
+	suite.WriteSuiteJson()
 
-	for _, test := range suite.Tests {
-		test.WriteFioFile(basePath)
-		test.WriteTestJson(basePath)
-		test.WriteCmdFile(basePath)
+	for _, fcmd := range suite.FioCommands {
+		fcmd.WriteFioConf()
+		fcmd.WriteFcmdJson()
+		fcmd.WriteCmdScript()
 	}
 }
 
-// WriteSuiteJson dumps the suite data structure to a JSON file. This
+// WriteSuiteJson() dumps the suite data structure to a JSON file. This
 // file is used by some effio subcommands, such as run_suite and various
 // reports.
-// <basePath>/<suite id>/suite.json
-func (suite *Suite) WriteSuiteJson(basePath string) {
-	outfile := path.Join(basePath, suite.SuiteJson)
-
+// <suite path>/<suite id>/suite.json
+func (suite *Suite) WriteSuiteJson() {
 	js, err := json.MarshalIndent(suite, "", "  ")
 	if err != nil {
 		log.Fatalf("Failed to encode suite data as JSON: %s\n", err)
@@ -143,24 +130,24 @@ func (suite *Suite) WriteSuiteJson(basePath string) {
 	// MarshalIndent does not follow the final brace with a newline
 	js = append(js, byte('\n'))
 
-	err = ioutil.WriteFile(outfile, js, 0644)
+	err = ioutil.WriteFile(suite.SuiteJson, js, 0644)
 	if err != nil {
-		log.Fatalf("Failed to write suite JSON data file '%s': %s\n", outfile, err)
+		log.Fatalf("Failed to write suite JSON data file '%s': %s\n", suite.SuiteJson, err)
 	}
 }
 
-// mkdirAll(path) creates the directory structure of a test suite
+// mkdirAll() creates the directory structure of a test suite
 // under directory 'path'. This must be called before the Write*()
 // methods or they will fail. It only makes sense to call this after
 // Populate().
-func (suite *Suite) mkdirAll(basePath string) {
-	sdir := path.Join(basePath, suite.Id)
+func (suite *Suite) mkdirAll() {
+	sdir := path.Join(suite.Path, suite.Name)
 
-	for _, t := range suite.Tests {
-		tdir := path.Join(sdir, t.Name)
-		err := os.MkdirAll(tdir, 0755)
+	for _, fcmd := range suite.FioCommands {
+		fcdir := path.Join(sdir, fcmd.Name)
+		err := os.MkdirAll(fcdir, 0755)
 		if err != nil {
-			log.Fatalf("Failed to create test directory '%s': %s\n", tdir, err)
+			log.Fatalf("Failed to create directory '%s': %s\n", fcdir, err)
 		}
 	}
 }

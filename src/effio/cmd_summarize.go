@@ -12,12 +12,12 @@ func (cmd *Cmd) SummarizeCSV() {
 	var jsonFlag bool
 
 	// TODO: add -json flag
-	fs := cmd.FlagSet
-	fs.StringVar(&inFlag, "in", "", "CSV file to load")
-	fs.IntVar(&hbktFlag, "hbkt", 10, "number of histogram buckets")
-	fs.StringVar(&outFlag, "out", "", "CSV file to write")
-	fs.BoolVar(&jsonFlag, "json", false, "Print JSON instead of human-readable text.")
-	fs.Parse(cmd.Args)
+	cmd.DefaultFlags()
+	cmd.FlagSet.StringVar(&inFlag, "in", "", "CSV file to load")
+	cmd.FlagSet.IntVar(&hbktFlag, "hbkt", 10, "number of histogram buckets")
+	cmd.FlagSet.StringVar(&outFlag, "out", "", "CSV file to write")
+	cmd.FlagSet.BoolVar(&jsonFlag, "json", false, "Print JSON instead of human-readable text.")
+	cmd.ParseArgs()
 
 	recs := LoadFioLatlog(inFlag)
 	smry := recs.Summarize(hbktFlag)

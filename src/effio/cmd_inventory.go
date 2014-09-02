@@ -11,16 +11,26 @@ import (
 	"strings"
 )
 
+// for some reason by-id doesn't show up on VMware Fusion
+// set -path to /dev/disk/by-path or /dev/disk/by-uuid instead
 func (cmd *Cmd) Inventory() {
-	// for some reason by-id doesn't show up on VMware Fusion
-	// this allows for pointing at by-path or by-uuid instead
-	var devPathFlag string
-	cmd.FlagSet.StringVar(&devPathFlag, "path", "/dev/disk/by-id", "dev path to search for devices")
-	cmd.FlagSet.Parse(cmd.Args)
+	cmd.DefaultFlags()
+	cmd.ParseArgs()
+
+	// default to scanning /dev/disk/by-id
+	if cmd.PathFlag == "" {
+		cmd.PathFlag = "/dev/disk/by-id"
+	}
 
 	// load device data from json
-	devs := InventoryDevs(devPathFlag)
+	devs := InventoryDevs(cmd.PathFlag)
+
+	// filter by -incl / -excl
+	devs = cmd.FilterDevices(devs)
+
+	// sort before output for readability
 	sort.Sort(devs)
+
 	js, err := json.MarshalIndent(devs, "", "  ")
 	if err != nil {
 		log.Fatalf("Failed to encode inventory JSON: %s\n", err)
@@ -95,10 +105,35 @@ func InventoryDevs(dpath string) (devs Devices) {
 
 	err := filepath.Walk(dpath, visitor)
 	if err != nil {
-		log.Fatalf("Could not inventory devices in /dev/disk/by-id: %s", err)
+		log.Fatalf("Could not inventory devices in '%s': %s", dpath, err)
 	}
 
 	return devs
+}
+
+// filter devices by device name string
+func (cmd *Cmd) FilterDevices(devs Devices) Devices {
+	out := make(Devices, 0)
+
+	for _, dev := range devs {
+		keep := true
+		if cmd.InclFlag != "" {
+			keep = false
+			if cmd.InclRE.MatchString(dev.Name) {
+				keep = true
+			}
+		}
+
+		if cmd.ExclFlag != "" && cmd.ExclRE.MatchString(dev.Name) {
+			keep = false
+		}
+
+		if keep {
+			out = append(out, dev)
+		}
+	}
+
+	return out
 }
 
 func GuessBrand(model string) string {

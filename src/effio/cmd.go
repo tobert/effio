@@ -3,15 +3,23 @@ package effio
 import (
 	"flag"
 	"fmt"
+	"log"
 	"os"
+	"regexp"
 	"strings"
 )
 
 type Cmd struct {
-	Process string
-	Command string
-	Args    []string
-	FlagSet *flag.FlagSet
+	Process  string         // argv[0]
+	Command  string         // the subcommand requested, e.g. 'inventory', 'run'
+	Args     []string       // args after extracting the subcommand
+	InclRE   *regexp.Regexp // compiled regular expression for list filtering
+	ExclRE   *regexp.Regexp // compiled regular expression for list filtering
+	NameFlag string         // -name
+	PathFlag string         // -path
+	InclFlag string         // -incl
+	ExclFlag string         // -excl
+	FlagSet  *flag.FlagSet  // stdlib flag set
 }
 
 // NewCmd returns a new command struct with arguments broken out.
@@ -54,6 +62,36 @@ func (cmd *Cmd) Run() {
 		cmd.Usage()
 	default:
 		cmd.Usage(fmt.Sprintf("Invalid subcommand '%s'.\n", cmd.Command))
+	}
+}
+
+func (cmd *Cmd) DefaultFlags() {
+	cmd.FlagSet.StringVar(&cmd.NameFlag, "name", "", "name of the benchmark")
+	cmd.FlagSet.StringVar(&cmd.PathFlag, "path", "", "working directory")
+
+	// -excl is processed after -incl so you can -incl and then pare it down with -excl
+	cmd.FlagSet.StringVar(&cmd.InclFlag, "incl", "", "regex matching tests to include in graph")
+	cmd.FlagSet.StringVar(&cmd.ExclFlag, "excl", "", "regex matching tests to exclude from graph")
+}
+
+func (cmd *Cmd) ParseArgs() {
+	var err error
+	cmd.FlagSet.Parse(cmd.Args)
+
+	// whitelist
+	if cmd.InclFlag != "" {
+		cmd.InclRE, err = regexp.Compile(cmd.InclFlag)
+		if err != nil {
+			log.Fatalf("-incl '%s': regex could not be compiled: %s\n", cmd.InclFlag, err)
+		}
+	}
+
+	// blacklist, applied after the whitelist
+	if cmd.ExclFlag != "" {
+		cmd.ExclRE, err = regexp.Compile(cmd.ExclFlag)
+		if err != nil {
+			log.Fatalf("-excl '%s': regex could not be compiled: %s\n", cmd.ExclFlag, err)
+		}
 	}
 }
 

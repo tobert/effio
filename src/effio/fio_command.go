@@ -18,8 +18,8 @@ import (
 type FioCommand struct {
 	Name        string      `json:"name"`          // name to be used in commands, files, etc.
 	Path        string      `json:"path"`          // directory for writing configs, logs, etc.
-	StartTS     time.Time   `json:"start_ts"`      // timestamp right before starting fio
-	EndTS       time.Time   `json:"end_ts"`        // timestamp right after the process exits
+	MinTs       time.Time   `json:"min_ts"`        // timestamp right before starting fio
+	MaxTs       time.Time   `json:"max_ts"`        // timestamp right after the process exits
 	FioArgs     []string    `json:"fio_args"`      // the arguments to the executed fio command
 	FioFile     string      `json:"fio_file"`      // generated fio config file name
 	FioJson     string      `json:"fio_json"`      // generated fio json output file name
@@ -138,6 +138,20 @@ func (fcmd *FioCommand) WriteFcmdJson() {
 	if err != nil {
 		log.Fatalf("Failed to write command JSON data file '%s': %s\n", outfile, err)
 	}
+}
+
+func LoadFioCommandJson(filename string) (out FioCommand) {
+	dataBytes, err := ioutil.ReadFile(filename)
+	if os.IsNotExist(err) {
+		log.Fatalf("Could not read file %s: %s", filename, err)
+	}
+
+	err = json.Unmarshal(dataBytes, &out)
+	if err != nil {
+		log.Fatalf("Could not parse FioCommand JSON: %s", err)
+	}
+
+	return out
 }
 
 // WriteCmdScript() writes the command to a file as a mini shell script.

@@ -49,7 +49,12 @@ func NewLatHgram(size int) LatHgram {
 }
 
 type LatSummaries struct {
-	Summary LatSmry
+	// the fio command used to generate the file
+	FioCommand FioCommand `json:"fio_command"`
+	// data from the output of fio --output=json
+	FioJsonData FioJsonData `json:"fio_data"`
+	// the global summary
+	Summary LatSmry `json:"summary"`
 	// all 99 percentiles + 99.9, 99.99, and 99.999%
 	Pcntl LatPcntl `json:"percentiles"`
 	// histogram across all samples, then by io direction

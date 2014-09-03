@@ -25,6 +25,7 @@ func (cmd *Cmd) SummarizeCSV() {
 
 	recs := LoadFioLatlog(inFlag)
 	smry := recs.Summarize(hbktFlag)
+	AppendMetadata(inFlag, &smry)
 
 	if jsonFlag {
 		os.Stdout.Write(toJson(smry))
@@ -33,14 +34,14 @@ func (cmd *Cmd) SummarizeCSV() {
 	}
 }
 
-// effio summarize-all -path suites -out public/data/summaries
+// effio summarize-all -path suites -out public/data
 func (cmd *Cmd) SummarizeAll() {
 	var hbktFlag int
 	var outFlag string
 
 	cmd.DefaultFlags()
 	cmd.FlagSet.IntVar(&hbktFlag, "hbkt", 10, "number of histogram buckets")
-	cmd.FlagSet.StringVar(&outFlag, "out", "public/data/summaries", "directory to write summaries to")
+	cmd.FlagSet.StringVar(&outFlag, "out", "public/data", "directory to write summaries to")
 	cmd.ParseArgs()
 
 	fi, err := os.Stat(outFlag)
@@ -56,6 +57,7 @@ func (cmd *Cmd) SummarizeAll() {
 	for _, file := range files {
 		recs := LoadFioLatlog(file)
 		smry := recs.Summarize(hbktFlag)
+		AppendMetadata(file, &smry)
 
 		// output filename is SHA1 of the source file
 		sha1sum := sha1file(file)
@@ -132,18 +134,42 @@ func printSummary(smry LatSummaries) {
 
 	fmt.Printf("\nAll Histogram[% 4d]:   ", len(smry.Histogram))
 	for _, bkt := range smry.Histogram {
-		fmt.Printf("% 10d ", bkt.Average)
+		fmt.Printf("% 7.3f ", bkt.Average)
 	}
 	fmt.Printf("\nRead Histogram[% 4d]:  ", len(smry.RHistogram))
 	for _, bkt := range smry.RHistogram {
-		fmt.Printf("% 10d ", bkt.Average)
+		fmt.Printf("% 7.3f ", bkt.Average)
 	}
 	fmt.Printf("\nWrite Histogram[% 4d]: ", len(smry.WHistogram))
 	for _, bkt := range smry.WHistogram {
-		fmt.Printf("% 10d ", bkt.Average)
+		fmt.Printf("% 7.3f ", bkt.Average)
+	}
+	fmt.Printf("\nTrim Histogram[% 4d]:  ", len(smry.THistogram))
+	for _, bkt := range smry.THistogram {
+		fmt.Printf("% 7.3f ", bkt.Average)
 	}
 	fmt.Printf("\n")
-	// leave trim out for now, none of my tests use it yet
+}
+
+func AppendMetadata(dpath string, smry *LatSummaries) {
+	fcmd_filenames := []string{"command.json", "test.json"}
+	dir := path.Dir(dpath)
+
+	for _, name := range fcmd_filenames {
+		fpath := path.Join(dir, name)
+		if fi, err := os.Stat(fpath); err == nil {
+			if fi.Size() > 0 {
+				smry.FioCommand = LoadFioCommandJson(fpath)
+			}
+		}
+	}
+
+	fpath := path.Join(dir, "output.json")
+	if fi, err := os.Stat(fpath); err == nil {
+		if fi.Size() > 0 {
+			smry.FioJsonData = LoadFioJsonData(fpath)
+		}
+	}
 }
 
 func sha1file(file string) string {

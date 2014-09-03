@@ -34,10 +34,10 @@ func (cmd *Cmd) ServeHTTP() {
 	cmd.ParseArgs()
 
 	if cmd.PathFlag == "" {
-		cmd.PathFlag = "./suites"
+		cmd.PathFlag = "public/data"
 	}
 
-	http.HandleFunc("/inventory", cmd.InventoryHandler)
+	http.HandleFunc("/inventory", cmd.InventoryDataHandler)
 	http.Handle("/", http.FileServer(http.Dir("./public")))
 
 	err := http.ListenAndServe(addrFlag, nil)
@@ -46,8 +46,8 @@ func (cmd *Cmd) ServeHTTP() {
 	}
 }
 
-func (cmd *Cmd) InventoryHandler(w http.ResponseWriter, r *http.Request) {
-	items := InventorySuiteData(cmd.PathFlag, ".json")
+func (cmd *Cmd) InventoryDataHandler(w http.ResponseWriter, r *http.Request) {
+	items := InventoryData(cmd.PathFlag)
 
 	json, err := json.Marshal(items)
 	if err != nil {
@@ -58,7 +58,7 @@ func (cmd *Cmd) InventoryHandler(w http.ResponseWriter, r *http.Request) {
 	w.Write(json)
 }
 
-func InventorySuiteData(dpath string, wantSuffix string) []string {
+func InventoryData(dpath string) []string {
 	out := make([]string, 0)
 
 	visitor := func(dpath string, f os.FileInfo, err error) error {
@@ -66,8 +66,8 @@ func InventorySuiteData(dpath string, wantSuffix string) []string {
 			log.Fatalf("Encountered an error while inventorying data in '%s': %s", dpath, err)
 		}
 
-		if strings.HasSuffix(dpath, wantSuffix) {
-			out = append(out, dpath)
+		if strings.HasSuffix(dpath, ".json") {
+			out = append(out, strings.TrimPrefix(dpath, "public/"))
 		}
 
 		return nil

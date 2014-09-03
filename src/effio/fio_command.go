@@ -122,7 +122,7 @@ func (fcmd *FioCommand) WriteFioConf() {
 }
 
 // WriteFcmdJson() dumps the fio command data to a JSON file
-// <-path path>/<suite.Name>/<fcmd.Name>/fio_command.json
+// <-path path>/<suite.Name>/<fcmd.Name>/command.json
 func (fcmd *FioCommand) WriteFcmdJson() {
 	outfile := path.Join(fcmd.Path, fcmd.CmdJson)
 

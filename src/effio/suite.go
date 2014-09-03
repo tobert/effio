@@ -93,7 +93,7 @@ func (suite *Suite) Populate(dl Devices, ftl FioConfTmpls) {
 				FioBWLog:    "bw",
 				FioLatLog:   "lat",
 				FioIopsLog:  "iops",
-				CmdJson:     "test.json",
+				CmdJson:     "command.json",
 				CmdScript:   "run.sh",
 				FioConfTmpl: tp,
 				Device:      dev,

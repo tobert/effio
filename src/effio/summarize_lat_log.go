@@ -25,36 +25,31 @@ func (p LatRecs) Swap(i, j int)      { p[i].Val, p[j].Val = p[j].Val, p[i].Val }
 
 // Latency Bucket Summary: a handful of useful values for each bucket in
 // the LatHgram.
-type LatBktSmry struct {
+type LatSmry struct {
+	Min     uint32   `json:"min"`
+	Max     uint32   `json:"max"`
 	Sum     uint64   `json:"sum"`
 	Count   uint64   `json:"count"`
 	Median  uint64   `json:"median"`
 	Stdev   float64  `json:"stdev"`
-	Average uint32   `json:"average"`
-	MinTS   uint32   `json:"min_ts"`
-	MaxTS   uint32   `json:"max_ts"`
+	Average float64  `json:"average"`
+	MinTs   uint32   `json:"min_ts"`
+	MaxTs   uint32   `json:"max_ts"`
+	Elapsed uint32   `json:"elapsed"`
 	Pcntl   LatPcntl `json:"percentiles"`
 }
-type LatHgram []*LatBktSmry
+type LatHgram []*LatSmry
 
 func NewLatHgram(size int) LatHgram {
 	lhg := make(LatHgram, size)
 	for i, _ := range lhg {
-		lhg[i] = &LatBktSmry{}
+		lhg[i] = &LatSmry{}
 	}
 	return lhg
 }
 
-type LatSmry struct {
-	Min         uint32  `json:"min"`
-	Max         uint32  `json:"max"`
-	Count       uint64  `json:"count"`
-	Sum         uint64  `json:"sum"`
-	Average     float64 `json:"average"`
-	Stdev       float64 `json:"stddev"`
-	BeginTs     uint32  `json:"first_ts"`
-	EndTs       uint32  `json:"last_ts"`
-	ElapsedTime uint32  `json:"elapsed"`
+type LatSummaries struct {
+	Summary LatSmry
 	// all 99 percentiles + 99.9, 99.99, and 99.999%
 	Pcntl LatPcntl `json:"percentiles"`
 	// histogram across all samples, then by io direction
@@ -80,43 +75,48 @@ type LatSmry struct {
 // Then the values are sorted to access the percentiles by index.
 // The final pass computes the standard deviation, which requires the average
 // from the first pass.
-func (lrs LatRecs) Summarize(histogram_size int) (ld LatSmry) {
+func (lrs LatRecs) Summarize(histogram_size int) (ld LatSummaries) {
 	if histogram_size > len(lrs) {
 		histogram_size = len(lrs)
 	}
 
-	ld.Max = 0
-	ld.Min = math.MaxUint32
-	ld.BeginTs = lrs[0].Time
-	ld.EndTs = lrs[len(lrs)-1].Time
-	ld.ElapsedTime = ld.EndTs - ld.BeginTs
+	smry := LatSmry{
+		Max: 0,
+		Min: math.MaxUint32,
+		MinTs: lrs[0].Time,
+		MaxTs: lrs[len(lrs)-1].Time,
+		Elapsed: lrs[len(lrs)-1].Time - lrs[0].Time,
+	}
 
 	// count, sum, min, max
 	for _, lr := range lrs {
-		ld.Count++
-		ld.Sum += uint64(lr.Val)
+		smry.Count++
+		smry.Sum += uint64(lr.Val)
 
-		if lr.Val > ld.Max {
-			ld.Max = lr.Val
+		if lr.Val > smry.Max {
+			smry.Max = lr.Val
 		}
 
-		if lr.Val < ld.Min {
-			ld.Min = lr.Val
+		if lr.Val < smry.Min {
+			smry.Min = lr.Val
 		}
 	}
 
 	// average is required to compute stdev
-	ld.Average = float64(ld.Sum) / float64(ld.Count)
+	smry.Average = float64(smry.Sum) / float64(smry.Count)
 
 	// second pass for stdev
 	var dsum float64
 	for _, lr := range lrs {
-		dsum += math.Pow(float64(lr.Val)-ld.Average, 2)
+		dsum += math.Pow(float64(lr.Val)-smry.Average, 2)
 	}
 
 	// finish computing variance & standard deviation
-	variance := dsum / float64(ld.Count)
-	ld.Stdev = math.Sqrt(variance)
+	variance := dsum / float64(smry.Count)
+	smry.Stdev = math.Sqrt(variance)
+
+	// assign the completed summary to the return struct
+	ld.Summary = smry
 
 	// warning: will do some sorting on slices, keep it at the bottom of this func
 	ld.Histogram, ld.RHistogram, ld.WHistogram, ld.THistogram = lrs.Histograms(histogram_size)
@@ -240,11 +240,11 @@ func (bucket LatRecs) updateBucket(bktidx int, hgidx int, hgram LatHgram, lrs La
 		return bktidx + 1, hgidx
 		// bucket is full or end of data, sum it & advance to the next histogram entry
 	} else {
-		hs := LatBktSmry{}
+		hs := LatSmry{}
 
 		// finding max/min ts by indices would usually work, but the backing LatRecs
 		// is sorted in place at times, so be safe and do it the hard way
-		hs.MinTS = math.MaxUint32
+		hs.MinTs = math.MaxUint32
 
 		// bucket is a static size, but at the end of a dataset there might not
 		// be enough samples to fill it, so always use `bslice` instead of `bucket` here
@@ -259,23 +259,23 @@ func (bucket LatRecs) updateBucket(bktidx int, hgidx int, hgram LatHgram, lrs La
 			hs.Sum += uint64(lr.Val)
 			hs.Count++
 
-			if lr.Time > hs.MaxTS {
-				hs.MaxTS = lr.Time
+			if lr.Time > hs.MaxTs {
+				hs.MaxTs = lr.Time
 			}
 
-			if lr.Time < hs.MinTS {
-				hs.MinTS = lr.Time
+			if lr.Time < hs.MinTs {
+				hs.MinTs = lr.Time
 			}
 		}
 
 		// get the median/p50 and average values
 		hs.Median = uint64(bslice[len(bslice)/2].Val)
-		hs.Average = uint32(hs.Sum / hs.Count)
+		hs.Average = float64(hs.Sum) / float64(hs.Count)
 
 		// add up the squares of each value's delta from average
 		var dsum float64
 		for _, lr := range bslice {
-			dsum += math.Pow(float64(lr.Val-hs.Average), 2)
+			dsum += math.Pow(float64(lr.Val)-hs.Average, 2)
 		}
 
 		// finish computing the standard deviation

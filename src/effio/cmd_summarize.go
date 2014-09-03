@@ -29,7 +29,7 @@ func (cmd *Cmd) SummarizeCSV() {
 	}
 }
 
-func printJson(smry LatSmry) {
+func printJson(smry LatSummaries) {
 	js, err := json.MarshalIndent(smry, "", "\t")
 	if err != nil {
 		fmt.Printf("Failed to encode summary data as JSON: %s\n", err)
@@ -40,16 +40,16 @@ func printJson(smry LatSmry) {
 	os.Stdout.Write(js)
 }
 
-func printSummary(smry LatSmry) {
-	fmt.Printf("Min:                %d\n", smry.Min)
-	fmt.Printf("Max:                %d\n", smry.Max)
-	fmt.Printf("Count:              %d\n", smry.Count)
-	fmt.Printf("Sum:                %d\n", smry.Sum)
-	fmt.Printf("Average:            %g\n", smry.Average)
-	fmt.Printf("Standard Deviation: %g\n", smry.Stdev)
-	fmt.Printf("Begin Timestamp:    %d\n", smry.BeginTs)
-	fmt.Printf("End Timestamp:      %d\n", smry.EndTs)
-	fmt.Printf("Elapsed Time:       %d\n", smry.ElapsedTime)
+func printSummary(smry LatSummaries) {
+	fmt.Printf("Min:                %d\n", smry.Summary.Min)
+	fmt.Printf("Max:                %d\n", smry.Summary.Max)
+	fmt.Printf("Count:              %d\n", smry.Summary.Count)
+	fmt.Printf("Sum:                %d\n", smry.Summary.Sum)
+	fmt.Printf("Average:            %g\n", smry.Summary.Average)
+	fmt.Printf("Standard Deviation: %g\n", smry.Summary.Stdev)
+	fmt.Printf("Begin Timestamp:    %d\n", smry.Summary.MinTs)
+	fmt.Printf("End Timestamp:      %d\n", smry.Summary.MaxTs)
+	fmt.Printf("Elapsed Time:       %d\n", smry.Summary.Elapsed)
 	fmt.Printf("\n")
 	fmt.Printf("P1:    % 8d P5:     % 8d P10:     % 8d\n", smry.Pcntl[1].Val, smry.Pcntl[5].Val, smry.Pcntl[10].Val)
 	fmt.Printf("P25:   % 8d P50:    % 8d P75:     % 8d\n", smry.Pcntl[25].Val, smry.Pcntl[50].Val, smry.Pcntl[75].Val)

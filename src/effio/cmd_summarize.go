@@ -3,7 +3,11 @@ package effio
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"os"
+	"path"
+	"path/filepath"
+	"strings"
 )
 
 func (cmd *Cmd) SummarizeCSV() {
@@ -22,21 +26,91 @@ func (cmd *Cmd) SummarizeCSV() {
 	smry := recs.Summarize(hbktFlag)
 
 	if jsonFlag {
-		printJson(smry)
+		os.Stdout.Write(toJson(smry))
 	} else {
 		printSummary(smry)
 	}
 }
 
-func printJson(smry LatSummaries) {
+// effio summarize-all -path suites -out public/data/summaries
+func (cmd *Cmd) SummarizeAll() {
+	var hbktFlag int
+	var outFlag string
+
+	cmd.DefaultFlags()
+	cmd.FlagSet.IntVar(&hbktFlag, "hbkt", 10, "number of histogram buckets")
+	cmd.FlagSet.StringVar(&outFlag, "out", "public/data/summaries", "directory to write summaries to")
+	cmd.ParseArgs()
+
+	fi, err := os.Stat(outFlag)
+	if err != nil {
+		log.Fatalf("Could not stat '%s': %s\n", outFlag, err)
+	}
+	if !fi.IsDir() {
+		log.Fatalf("'%s' must be a directory!\n", outFlag)
+	}
+
+	files := InventoryCSVFiles(cmd.PathFlag)
+
+	for _, file := range files {
+		nolog := strings.TrimSuffix(file, ".log")
+		nopath := strings.Replace(nolog, "/", "-", -1)
+		outpath := path.Join(outFlag, fmt.Sprintf("%s.json", nopath))
+
+		recs := LoadFioLatlog(file)
+		smry := recs.Summarize(hbktFlag)
+
+		out, err := os.OpenFile(outpath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
+		if err != nil {
+			log.Fatalf("Could not open file '%s' for write: %s\n", outpath, err)
+		}
+		out.Write(toJson(smry))
+	}
+}
+
+func InventoryCSVFiles(dpath string) []string {
+	out := make([]string, 0)
+	wanted := []string{"bw_bw.log", "lat_lat.log", "lat_slat.log", "lat_clat.log", "iops_iops.log"}
+
+	visitor := func(dpath string, f os.FileInfo, err error) error {
+		if err != nil {
+			log.Fatalf("Encountered an error while inventorying files in '%s': %s", dpath, err)
+		}
+
+		fi, err := os.Stat(dpath)
+		if err != nil {
+			log.Fatalf("Could not stat '%s': %s\n", dpath, err)
+		}
+
+		// skip empty and tiny files
+		if fi.Size() < 100 {
+			return nil
+		}
+
+		for _, want := range wanted {
+			if path.Base(dpath) == want {
+				out = append(out, dpath)
+			}
+		}
+
+		return nil
+	}
+
+	err := filepath.Walk(dpath, visitor)
+	if err != nil {
+		log.Fatalf("Could not inventory files in '%s': %s", dpath, err)
+	}
+
+	return out
+}
+
+func toJson(smry LatSummaries) []byte {
 	js, err := json.MarshalIndent(smry, "", "\t")
 	if err != nil {
 		fmt.Printf("Failed to encode summary data as JSON: %s\n", err)
 		os.Exit(1)
 	}
-	js = append(js, byte('\n'))
-
-	os.Stdout.Write(js)
+	return append(js, byte('\n'))
 }
 
 func printSummary(smry LatSummaries) {

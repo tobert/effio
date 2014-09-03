@@ -1,13 +1,14 @@
 package effio
 
 import (
+	"crypto/sha1"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"path"
 	"path/filepath"
-	"strings"
 )
 
 func (cmd *Cmd) SummarizeCSV() {
@@ -53,12 +54,12 @@ func (cmd *Cmd) SummarizeAll() {
 	files := InventoryCSVFiles(cmd.PathFlag)
 
 	for _, file := range files {
-		nolog := strings.TrimSuffix(file, ".log")
-		nopath := strings.Replace(nolog, "/", "-", -1)
-		outpath := path.Join(outFlag, fmt.Sprintf("%s.json", nopath))
-
 		recs := LoadFioLatlog(file)
 		smry := recs.Summarize(hbktFlag)
+
+		// output filename is SHA1 of the source file
+		sha1sum := sha1file(file)
+		outpath := path.Join(outFlag, fmt.Sprintf("%s.json", sha1sum))
 
 		out, err := os.OpenFile(outpath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
 		if err != nil {
@@ -143,4 +144,20 @@ func printSummary(smry LatSummaries) {
 	}
 	fmt.Printf("\n")
 	// leave trim out for now, none of my tests use it yet
+}
+
+func sha1file(file string) string {
+	hasher := sha1.New()
+
+	f, err := os.Open(file)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer f.Close()
+
+	if _, err := io.Copy(hasher, f); err != nil {
+		log.Fatal(err)
+	}
+
+	return fmt.Sprintf("%x", hasher.Sum(nil))
 }

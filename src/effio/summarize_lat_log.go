@@ -81,10 +81,10 @@ func (lrs LatRecs) Summarize(histogram_size int) (ld LatSummaries) {
 	}
 
 	smry := LatSmry{
-		Max: 0,
-		Min: math.MaxUint32,
-		MinTs: lrs[0].Time,
-		MaxTs: lrs[len(lrs)-1].Time,
+		Max:     0,
+		Min:     math.MaxUint32,
+		MinTs:   lrs[0].Time,
+		MaxTs:   lrs[len(lrs)-1].Time,
 		Elapsed: lrs[len(lrs)-1].Time - lrs[0].Time,
 	}
 

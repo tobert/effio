@@ -24,8 +24,8 @@ import (
 type Suite struct {
 	Name        string      `json:"name"`         // a name given to the suite on the command line
 	Path        string      `json:"path"`         // path for writing benchmark data out
-	StartTS     time.Time   `json:"start_ts"`     // time the suite was started
-	EndTS       time.Time   `json:"end_ts"`       // time the suite finished
+	MinTs       time.Time   `json:"min_ts"`       // time the suite was started
+	MaxTs       time.Time   `json:"max_ts"`       // time the suite finished
 	EffioCmd    []string    `json:"effio_cmd"`    // os.Args() of the effio command used
 	SuiteJson   string      `json:"suite_json"`   // metadata about the suite of tests
 	FioCommands FioCommands `json:"fio_commands"` // fio commands run/to be run
@@ -45,7 +45,7 @@ func NewSuite(name string, pathArg string) Suite {
 	return Suite{
 		Name:        name,
 		Path:        spath,
-		StartTS:     time.Now(),
+		MinTs:       time.Now(),
 		EffioCmd:    os.Args,
 		SuiteJson:   fname,
 		FioCommands: FioCommands{},
@@ -66,6 +66,8 @@ func (suite *Suite) Run(rerun bool) {
 		}
 		fcmd.Run()
 	}
+
+	suite.MaxTs = time.Now()
 }
 
 // Populate the suite with the (cartesian) product of Devices x FioConfTmpls

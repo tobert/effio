@@ -58,6 +58,8 @@ func (cmd *Cmd) Run() {
 		cmd.Inventory()
 	case "summarize":
 		cmd.SummarizeCSV()
+	case "serve":
+		cmd.ServeHTTP()
 	case "help", "-h", "-help", "--help":
 		cmd.Usage()
 	default:

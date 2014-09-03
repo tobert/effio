@@ -11,7 +11,6 @@ func (cmd *Cmd) SummarizeCSV() {
 	var inFlag, outFlag string
 	var jsonFlag bool
 
-	// TODO: add -json flag
 	cmd.DefaultFlags()
 	cmd.FlagSet.StringVar(&inFlag, "in", "", "CSV file to load")
 	cmd.FlagSet.IntVar(&hbktFlag, "hbkt", 10, "number of histogram buckets")

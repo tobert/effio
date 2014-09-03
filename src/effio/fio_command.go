@@ -16,11 +16,11 @@ import (
 // The goal is to capture every detail of how the benchmark was generated
 // and eventually run so it can be exported with all results.
 type FioCommand struct {
-	Name        string      `json:"name"`          // name to be used in tests, files, etc.
+	Name        string      `json:"name"`          // name to be used in commands, files, etc.
 	Path        string      `json:"path"`          // directory for writing configs, logs, etc.
 	StartTS     time.Time   `json:"start_ts"`      // timestamp right before starting fio
 	EndTS       time.Time   `json:"end_ts"`        // timestamp right after the process exits
-	FioArgs     []string    `json:"fio_args"`      // the arguments to the fio command for the test
+	FioArgs     []string    `json:"fio_args"`      // the arguments to the executed fio command
 	FioFile     string      `json:"fio_file"`      // generated fio config file name
 	FioJson     string      `json:"fio_json"`      // generated fio json output file name
 	FioBWLog    string      `json:"fio_bw_log"`    // filename for the bandwidth log
@@ -105,7 +105,7 @@ func (fcmd *FioCommand) Run() {
 }
 
 // WriteFioConf() writes the fio configuration file.
-// <-path path>/<suite.Name>/<generated test name>/config.fio
+// <-path path>/<suite.Name>/<generated command name>/config.fio
 func (fcmd *FioCommand) WriteFioConf() {
 	outfile := path.Join(fcmd.Path, fcmd.FioFile)
 
@@ -128,7 +128,7 @@ func (fcmd *FioCommand) WriteFcmdJson() {
 
 	js, err := json.MarshalIndent(fcmd, "", "  ")
 	if err != nil {
-		log.Fatalf("Failed to encode test data as JSON: %s\n", err)
+		log.Fatalf("Failed to encode command data as JSON: %s\n", err)
 	}
 
 	// MarshalIndent does not follow the final brace with a newline
@@ -136,7 +136,7 @@ func (fcmd *FioCommand) WriteFcmdJson() {
 
 	err = ioutil.WriteFile(outfile, js, 0644)
 	if err != nil {
-		log.Fatalf("Failed to write test JSON data file '%s': %s\n", outfile, err)
+		log.Fatalf("Failed to write command JSON data file '%s': %s\n", outfile, err)
 	}
 }
 

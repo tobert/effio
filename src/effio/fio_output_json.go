@@ -1,11 +1,12 @@
 package effio
 
-// effio/fio_json.go - methods for loading & wrangling fio's JSON output
+// methods for loading & wrangling fio's JSON output
 // License: Apache 2.0
 
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"log"
 	"os"
@@ -13,12 +14,91 @@ import (
 	"strings"
 )
 
-func (fdata *FioData) LoadJSON(filename string) {
+type FioJsonHistogram map[float64]float64
+
+// three kinds of latency, slat, clat, lat all with the same fields
+type FioJsonLatency struct {
+	Min        float64          `json:"min"`
+	Max        float64          `json:"max"`
+	Mean       float64          `json:"mean"`
+	Stdev      float64          `json:"stdev"`
+	Percentile FioJsonHistogram `json:"percentile"`
+}
+
+// same data for Mixed/Read/Write/Trim, which are present depends on
+// how fio was run
+type FioJsonJobStats struct {
+	IoBytes   int             `json:"io_bytes"`
+	Bandwidth float64         `json:"bw"`
+	BwMin     float64         `json:"bw_min"`
+	BwMax     float64         `json:"bw_max"`
+	BwAgg     float64         `json:"bw_agg"`
+	BwMean    float64         `json:"bw_mean"`
+	BwStdev   float64         `json:"bw_dev"`
+	Iops      int             `json:"iops"`
+	Runtime   int             `json:"runtime"`
+	Slat      *FioJsonLatency `json:"slat"`
+	Clat      *FioJsonLatency `json:"clat"`
+	Lat       *FioJsonLatency `json:"lat"`
+}
+
+// each fio session can have multiple jobs, each job is reported
+// in an array called client_stats
+
+type FioJsonJob struct {
+	Name              string           `json:"jobname"`
+	Description       string           `json:"desc"`
+	Groupid           int              `json:"groupid"`
+	Error             int              `json:"error"`
+	Mixed             *FioJsonJobStats `json:"mixed"` // fio config dependent
+	Read              *FioJsonJobStats `json:"read"`  // fio config dependent
+	Write             *FioJsonJobStats `json:"write"` // fio config dependent
+	Trim              *FioJsonJobStats `json:"trim"`  // fio config dependent
+	UsrCpu            float64          `json:"usr_cpu"`
+	SysCpu            float64          `json:"sys_cpu"`
+	ContextSwitches   int              `json:"ctx"`
+	MajorFaults       int              `json:"majf"`
+	MinorFaults       int              `json:"minf"`
+	IODepthLevel      FioJsonHistogram `json:"iodepth_level"`
+	LatencyUsec       FioJsonHistogram `json:"latency_us"`
+	LatencyMsec       FioJsonHistogram `json:"latency_ms"`
+	LatencyDepth      int              `json:"latency_depth"`
+	LatencyTarget     int              `json:"latency_target"`
+	LatencyPercentile float64          `json:"latency_percentile"`
+	LatencyWindow     int              `json:"latency_window"`
+	Hostname          string           `json:"hostname"`
+	Port              int              `json:"port"`
+}
+
+type FioJsonDiskUtil struct {
+	Name        string  `json:"name"`
+	ReadIos     int     `json:"read_ios"`
+	WriteIos    int     `json:"write_ios"`
+	ReadMerges  int     `json:"read_merges"`
+	WriteMerges int     `json:"write_merges"`
+	ReadTicks   int     `json:"read_ticks"`
+	WriteTicks  int     `json:"write_ticks"`
+	InQueue     int     `json:"in_queue"`
+	Util        float64 `json:"util"`
+}
+
+type FioJsonData struct {
+	Filename      string            `json:"filename"`
+	FioVersion    string            `json:"fio version"`
+	HeaderGarbage string            `json:"garbage"`
+	Jobs          []FioJsonJob      `json:"jobs"`
+	DiskUtil      []FioJsonDiskUtil `json:"disk_util"`
+}
+
+func LoadFioJsonData(filename string) (fdata FioJsonData) {
 	dataBytes, err := ioutil.ReadFile(filename)
 
 	if os.IsNotExist(err) {
 		log.Fatalf("Could not read file %s: %s", filename, err)
 	}
+
+	// data loaded OK
+	fdata.Filename = filename
 
 	// fio writes a bunch of crap out to the output file before the JSON so for
 	// now do the easy thing and find the first { after a \n and call it good
@@ -36,47 +116,51 @@ func (fdata *FioData) LoadJSON(filename string) {
 
 	fdata.HeaderGarbage = string(dataBytes[0:offset])
 
-	// now go over the maps of string => float64 and fix them up to be float64 => float64
-	for _, cs := range fdata.ClientStats {
-		cs.IODepthLevel = cs.IODepthLevelStr.cleanKeys()
-		cs.LatencyUsec = cs.LatencyUsecStr.cleanKeys()
-		cs.LatencyMsec = cs.LatencyMsecStr.cleanKeys()
-
-		// might be worth checking for valid combinations someday, but in practice this works OK
-		cs.Mixed.cleanHistograms()
-		cs.Read.cleanHistograms()
-		cs.Write.cleanHistograms()
-		cs.Trim.cleanHistograms()
-	}
-}
-
-// the same 3 fields exist in Read/Write/Mixed/Trim
-func (js *JobStats) cleanHistograms() {
-	// JSON might not contain this field
-	if js == nil {
-		return
-	}
-	js.Lat.Percentile = js.Lat.PercentileStr.cleanKeys()
-	js.Clat.Percentile = js.Clat.PercentileStr.cleanKeys()
-	js.Slat.Percentile = js.Slat.PercentileStr.cleanKeys()
+	return
 }
 
 // some of the bucket keys are in the form ">=50.00" which of course
 // cannot be unmarshaled into a number, so clean that up before trying
-func (hst HistogramStr) cleanKeys() Histogram {
-	// JSON might not contain this field
-	if hst == nil {
-		return nil
+func (hst *FioJsonHistogram) UnmarshalJSON(data []byte) error {
+	hststr := make(map[string]float64, len(data) / 8)
+
+	err := json.Unmarshal(data, &hststr)
+	if err != nil {
+		return err
 	}
 
-	out := make(Histogram, len(hst))
+	out := make(FioJsonHistogram, len(hststr))
 
-	for k, v := range hst {
+	for k, v := range hststr {
 		// remove the ">=" fio puts in some of the keys
 		cleaned := strings.TrimPrefix(k, ">=")
 		fkey, _ := strconv.ParseFloat(cleaned, 64)
 		out[fkey] = v
 	}
 
-	return out
+	hst = &out
+
+	return nil
+}
+
+// JSON doesn't officially support anything but strings as keys
+// so the floats have to be converted with this handler.
+func (hst FioJsonHistogram) MarshalJSON() ([]byte, error) {
+	started := false
+	buf := make([]byte, 8192) // lazy
+	sep := ""
+	buf[0] = '{'
+	bufidx := 1
+	for key, val := range hst {
+		if started {
+			sep = ","
+		} else {
+			started = true
+		}
+		out := []byte(fmt.Sprintf("\"%g\":%g%s", key, val, sep))
+		bufidx += copy(buf[bufidx:bufidx+len(out)], out)
+	}
+	buf[bufidx] = '}'
+
+	return buf[0 : bufidx+1], nil
 }

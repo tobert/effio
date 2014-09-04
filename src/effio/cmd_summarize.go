@@ -60,7 +60,7 @@ func (cmd *Cmd) SummarizeAll() {
 			log.Fatalf("Could not stat CSV file '%s': %s\n", file, err)
 		}
 		// avoid tiny files, not enough data for summarize to work
-		if fi.Size() < 65536 {
+		if fi.Size() < 5000 {
 			log.Printf("Skipping file %q because it is only %d bytes.\n", file, fi.Size())
 			continue
 		}

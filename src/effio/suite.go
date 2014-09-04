@@ -145,13 +145,10 @@ func (suite *Suite) WriteSuiteJson() {
 // methods or they will fail. It only makes sense to call this after
 // Populate().
 func (suite *Suite) mkdirAll() {
-	sdir := path.Join(suite.Path, suite.Name)
-
 	for _, fcmd := range suite.FioCommands {
-		fcdir := path.Join(sdir, fcmd.Name)
-		err := os.MkdirAll(fcdir, 0755)
+		err := os.MkdirAll(fcmd.Path, 0755)
 		if err != nil {
-			log.Fatalf("Failed to create directory '%s': %s\n", fcdir, err)
+			log.Fatalf("Failed to create directory '%s': %s\n", fcmd.Path, err)
 		}
 	}
 }

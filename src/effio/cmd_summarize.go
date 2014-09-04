@@ -55,6 +55,16 @@ func (cmd *Cmd) SummarizeAll() {
 	files := InventoryCSVFiles(cmd.PathFlag)
 
 	for _, file := range files {
+		fi, err := os.Stat(file)
+		if err != nil {
+			log.Fatalf("Could not stat CSV file '%s': %s\n", file, err)
+		}
+		// avoid tiny files, not enough data for summarize to work
+		if fi.Size() < 65536 {
+			log.Printf("Skipping file %q because it is only %d bytes.\n", file, fi.Size())
+			continue
+		}
+
 		recs := LoadFioLatlog(file)
 		smry := recs.Summarize(hbktFlag)
 		AppendMetadata(file, &smry)

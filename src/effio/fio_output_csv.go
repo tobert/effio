@@ -15,19 +15,19 @@ import (
 	"time"
 )
 
-// Loads the CSV output by fio into an LatRecs array of LatRec structs.
-func LoadFioLatlog(filename string) LatRecs {
+// Loads the CSV output by fio into an LogRecs array of LogRec structs.
+func LoadFioLog(filename string) LogRecs {
 	fmt.Printf("Parsing file: '%s' ... ", filename)
 
 	fd, err := os.Open(filename)
 	if err != nil {
 		fmt.Printf(" Failed.\nCould not open file '%s' for read: %s\n", filename, err)
-		return LatRecs{}
+		return LogRecs{}
 	}
 	defer fd.Close()
 
 	started := time.Now()
-	records := make(LatRecs, 0)
+	records := make(LogRecs, 0)
 
 	bfd := bufio.NewReader(fd)
 	lno := 0
@@ -69,7 +69,7 @@ func LoadFioLatlog(filename string) LatRecs {
 			log.Fatalf("\nParsing field 3 failed in file '%s' at line %d: %s", filename, lno, err)
 		}
 
-		lr := LatRec{uint32(tm), uint32(perf), uint8(ddir), uint16(bsz), uint32(lno)}
+		lr := LogRec{uint32(tm), uint32(perf), uint8(ddir), uint16(bsz), uint32(lno)}
 		records = append(records, &lr)
 	}
 
@@ -79,7 +79,7 @@ func LoadFioLatlog(filename string) LatRecs {
 	return records
 }
 
-func (lrs LatRecs) DumpCSV(fpath string) {
+func (lrs LogRecs) DumpCSV(fpath string) {
 	fd, err := os.OpenFile(fpath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
 	if err != nil {
 		log.Fatalf("Could not open '%s' for write: %s\n", fpath, err)
@@ -92,6 +92,6 @@ func (lrs LatRecs) DumpCSV(fpath string) {
 		if lr == nil {
 			break
 		}
-		fmt.Fprintf(fd, "%f,%f,%d\n", lr.Time, lr.Val, lr.Ddir)
+		fmt.Fprintf(fd, "%f,%f,%d,%d\n", lr.Time, lr.Val, lr.Ddir, lr.Bsz)
 	}
 }

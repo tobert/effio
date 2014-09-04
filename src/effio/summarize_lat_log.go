@@ -6,26 +6,26 @@ import (
 	"sort"
 )
 
-// Latency Record: The 4 fields from fio's latency logs and an index cache
+// Log Record: The 4 fields from fio's latency logs and an index cache
 // This is where most of the memory goes
-type LatRec struct {
+type LogRec struct {
 	Time uint32 `json:"time"`  // time offset from beginning of fio run
 	Val  uint32 `json:"value"` // latency value in usec
 	Ddir uint8  `json:"-"`     // 0 = read, 1 = write, 2 = trim
 	Bsz  uint16 `json:"-"`     // block size
-	Idx  uint32 `json:"-"`     // save the original index in LatRecs
+	Idx  uint32 `json:"-"`     // save the original index in LogRecs
 }
-type LatPcntl map[float64]*LatRec // .MarshalJSON() at EOF
-type LatRecs []*LatRec
+type LogPcntl map[float64]*LogRec // .MarshalJSON() at EOF
+type LogRecs []*LogRec
 
 // sort interface impl, sorts by value for indexing percentiles
-func (p LatRecs) Len() int           { return len(p) }
-func (p LatRecs) Less(i, j int) bool { return p[i].Val < p[j].Val }
-func (p LatRecs) Swap(i, j int)      { p[i].Val, p[j].Val = p[j].Val, p[i].Val }
+func (p LogRecs) Len() int           { return len(p) }
+func (p LogRecs) Less(i, j int) bool { return p[i].Val < p[j].Val }
+func (p LogRecs) Swap(i, j int)      { p[i].Val, p[j].Val = p[j].Val, p[i].Val }
 
-// Latency Bucket Summary: a handful of useful values for each bucket in
-// the LatHgram.
-type LatSmry struct {
+// Log Bucket Summary: a handful of useful values for each bucket in
+// the LogHgram.
+type LogSmry struct {
 	Min     uint32   `json:"min"`
 	Max     uint32   `json:"max"`
 	Sum     uint64   `json:"sum"`
@@ -36,56 +36,56 @@ type LatSmry struct {
 	MinTs   uint32   `json:"min_ts"`
 	MaxTs   uint32   `json:"max_ts"`
 	Elapsed uint32   `json:"elapsed"`
-	Pcntl   LatPcntl `json:"percentiles"`
+	Pcntl   LogPcntl `json:"percentiles"`
 }
-type LatHgram []*LatSmry
+type LogHgram []*LogSmry
 
-func NewLatHgram(size int) LatHgram {
-	lhg := make(LatHgram, size)
+func NewLogHgram(size int) LogHgram {
+	lhg := make(LogHgram, size)
 	for i, _ := range lhg {
-		lhg[i] = &LatSmry{}
+		lhg[i] = &LogSmry{}
 	}
 	return lhg
 }
 
-type LatSummaries struct {
+type LogSummaries struct {
 	// the fio command used to generate the file
 	FioCommand FioCommand `json:"fio_command"`
 	// data from the output of fio --output=json
 	FioJsonData FioJsonData `json:"fio_data"`
 	// the global summary
-	Summary LatSmry `json:"summary"`
+	Summary LogSmry `json:"summary"`
 	// all 99 percentiles + 99.9, 99.99, and 99.999%
-	Pcntl LatPcntl `json:"percentiles"`
+	Pcntl LogPcntl `json:"percentiles"`
 	// histogram across all samples, then by io direction
-	Histogram  LatHgram `json:"histogram"`       // hgram of all records
-	RHistogram LatHgram `json:"read_histogram"`  // hgram of all read ops
-	WHistogram LatHgram `json:"write_histogram"` // hgram of all write ops
-	THistogram LatHgram `json:"trim_histogram"`  // hgram of all trim ops
+	Histogram  LogHgram `json:"histogram"`       // hgram of all records
+	RHistogram LogHgram `json:"read_histogram"`  // hgram of all read ops
+	WHistogram LogHgram `json:"write_histogram"` // hgram of all write ops
+	THistogram LogHgram `json:"trim_histogram"`  // hgram of all trim ops
 	// capture outliers by preserving full resolution for metrics <P1 and >P99
-	P1Histogram   LatHgram `json:"p1_histogram"`        // hgram of records with values < P1
-	P1RHistogram  LatHgram `json:"p1_read_histogram"`   // hgram <P1 / read
-	P1WHistogram  LatHgram `json:"p1_write_histogram"`  // hgram <P1 / write
-	P1THistogram  LatHgram `json:"p1_trim_histogram"`   // hgram <P1 / trim
-	P99Histogram  LatHgram `json:"p99_histogram"`       // hgram of records with values > P99
-	P99RHistogram LatHgram `json:"p99_read_histogram"`  // hgram >P99 / read
-	P99WHistogram LatHgram `json:"p99_write_histogram"` // hgram >P99 / write
-	P99THistogram LatHgram `json:"p99_trim_histogram"`  // hgram >P99 / trim
+	P1Histogram   LogHgram `json:"p1_histogram"`        // hgram of records with values < P1
+	P1RHistogram  LogHgram `json:"p1_read_histogram"`   // hgram <P1 / read
+	P1WHistogram  LogHgram `json:"p1_write_histogram"`  // hgram <P1 / write
+	P1THistogram  LogHgram `json:"p1_trim_histogram"`   // hgram <P1 / trim
+	P99Histogram  LogHgram `json:"p99_histogram"`       // hgram of records with values > P99
+	P99RHistogram LogHgram `json:"p99_read_histogram"`  // hgram >P99 / read
+	P99WHistogram LogHgram `json:"p99_write_histogram"` // hgram >P99 / write
+	P99THistogram LogHgram `json:"p99_trim_histogram"`  // hgram >P99 / trim
 }
 
-// Summarizes the LatRecs data into a LatSmry.
+// Summarizes the LogRecs data into a LogSmry.
 // First argument is the number of samples to put in the summaries.
 // Second argument is the number of buckets in the histograms.
 // This does all the work in 3 passes, the first getting avg/min/max.
 // Then the values are sorted to access the percentiles by index.
 // The final pass computes the standard deviation, which requires the average
 // from the first pass.
-func (lrs LatRecs) Summarize(histogram_size int) (ld LatSummaries) {
+func (lrs LogRecs) Summarize(histogram_size int) (ld LogSummaries) {
 	if histogram_size > len(lrs) {
 		histogram_size = len(lrs)
 	}
 
-	smry := LatSmry{
+	smry := LogSmry{
 		Max:     0,
 		Min:     math.MaxUint32,
 		MinTs:   lrs[0].Time,
@@ -145,11 +145,11 @@ func (lrs LatRecs) Summarize(histogram_size int) (ld LatSummaries) {
 	return
 }
 
-func (lrs LatRecs) Histograms(histogram_size int) (all, read, write, trim LatHgram) {
-	all = NewLatHgram(histogram_size)   // all-IO histogram
-	read = NewLatHgram(histogram_size)  // reads histogram
-	write = NewLatHgram(histogram_size) // writes histogram
-	trim = NewLatHgram(histogram_size)  // trims histogram
+func (lrs LogRecs) Histograms(histogram_size int) (all, read, write, trim LogHgram) {
+	all = NewLogHgram(histogram_size)   // all-IO histogram
+	read = NewLogHgram(histogram_size)  // reads histogram
+	write = NewLogHgram(histogram_size) // writes histogram
+	trim = NewLogHgram(histogram_size)  // trims histogram
 
 	// one pass to count each direction of IO
 	var all_count, read_count, write_count, trim_count int
@@ -168,10 +168,10 @@ func (lrs LatRecs) Histograms(histogram_size int) (all, read, write, trim LatHgr
 	var acnt, rcnt, wcnt, tcnt int // bucket counter
 
 	// bucketSize() returns rounded (count / buckets) with error checking
-	abkt := make(LatRecs, bucketSize(histogram_size, all_count))
-	rbkt := make(LatRecs, bucketSize(histogram_size, read_count))
-	wbkt := make(LatRecs, bucketSize(histogram_size, write_count))
-	tbkt := make(LatRecs, bucketSize(histogram_size, trim_count))
+	abkt := make(LogRecs, bucketSize(histogram_size, all_count))
+	rbkt := make(LogRecs, bucketSize(histogram_size, read_count))
+	wbkt := make(LogRecs, bucketSize(histogram_size, write_count))
+	tbkt := make(LogRecs, bucketSize(histogram_size, trim_count))
 
 	// TODO: document this algorithm for one pass bucket filling
 	for i, lr := range lrs {
@@ -190,8 +190,8 @@ func (lrs LatRecs) Histograms(histogram_size int) (all, read, write, trim LatHgr
 }
 
 // expects lrs to be pre-sorted
-func percentiles(lrs LatRecs) LatPcntl {
-	out := make(LatPcntl, 102)
+func percentiles(lrs LogRecs) LogPcntl {
+	out := make(LogPcntl, 102)
 
 	pctl_idx := func(pc float64) int {
 		idx := math.Floor(float64(len(lrs)) * (pc / 100))
@@ -224,7 +224,7 @@ func bucketSize(buckets int, available int) int {
 	}
 }
 
-// Adds the value to the bucket at index bktidx using the LatRec at lrs[lridx].
+// Adds the value to the bucket at index bktidx using the LogRec at lrs[lridx].
 // When full, summarized into smry[smry_idx]. Returns updated index values for
 // use in the next iteration.
 //
@@ -236,8 +236,8 @@ func bucketSize(buckets int, available int) int {
 // lrs: source data slice
 // lridx: current index into the source data slice
 // Returns: (new bucket index, new histogram index)
-func (bucket LatRecs) updateBucket(bktidx int, hgidx int, hgram LatHgram, lrs LatRecs, lridx int) (int, int) {
-	// add the current LatRec to the bucket
+func (bucket LogRecs) updateBucket(bktidx int, hgidx int, hgram LogHgram, lrs LogRecs, lridx int) (int, int) {
+	// add the current LogRec to the bucket
 	bucket[bktidx] = lrs[lridx]
 
 	// advance the bucket index, stay on the same summary index
@@ -245,9 +245,9 @@ func (bucket LatRecs) updateBucket(bktidx int, hgidx int, hgram LatHgram, lrs La
 		return bktidx + 1, hgidx
 		// bucket is full or end of data, sum it & advance to the next histogram entry
 	} else {
-		hs := LatSmry{}
+		hs := LogSmry{}
 
-		// finding max/min ts by indices would usually work, but the backing LatRecs
+		// finding max/min ts by indices would usually work, but the backing LogRecs
 		// is sorted in place at times, so be safe and do it the hard way
 		hs.MinTs = math.MaxUint32
 
@@ -301,7 +301,7 @@ func (bucket LatRecs) updateBucket(bktidx int, hgidx int, hgram LatHgram, lrs La
 
 // JSON doesn't officially support anything but strings as keys
 // so the floats have to be converted with this handler.
-func (lp LatPcntl) MarshalJSON() ([]byte, error) {
+func (lp LogPcntl) MarshalJSON() ([]byte, error) {
 	jsonFmt := "\"%g\": {\"time\": %d, \"value\": %d}%s"
 	max := fmt.Sprintf(jsonFmt, math.MaxFloat64, math.MaxInt32, math.MaxInt32, ",")
 	buf := make([]byte, len(lp)*len(max)+4)

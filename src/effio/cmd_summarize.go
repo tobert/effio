@@ -23,7 +23,7 @@ func (cmd *Cmd) SummarizeCSV() {
 	cmd.FlagSet.BoolVar(&jsonFlag, "json", false, "Print JSON instead of human-readable text.")
 	cmd.ParseArgs()
 
-	recs := LoadFioLatlog(inFlag)
+	recs := LoadFioLog(inFlag)
 	smry := recs.Summarize(hbktFlag)
 	AppendMetadata(inFlag, &smry)
 
@@ -65,7 +65,7 @@ func (cmd *Cmd) SummarizeAll() {
 			continue
 		}
 
-		recs := LoadFioLatlog(file)
+		recs := LoadFioLog(file)
 		smry := recs.Summarize(hbktFlag)
 		AppendMetadata(file, &smry)
 
@@ -117,7 +117,7 @@ func InventoryCSVFiles(dpath string) []string {
 	return out
 }
 
-func toJson(smry LatSummaries) []byte {
+func toJson(smry LogSummaries) []byte {
 	js, err := json.MarshalIndent(smry, "", "\t")
 	if err != nil {
 		fmt.Printf("Failed to encode summary data as JSON: %s\n", err)
@@ -126,7 +126,7 @@ func toJson(smry LatSummaries) []byte {
 	return append(js, byte('\n'))
 }
 
-func printSummary(smry LatSummaries) {
+func printSummary(smry LogSummaries) {
 	fmt.Printf("Min:                %d\n", smry.Summary.Min)
 	fmt.Printf("Max:                %d\n", smry.Summary.Max)
 	fmt.Printf("Count:              %d\n", smry.Summary.Count)
@@ -161,7 +161,7 @@ func printSummary(smry LatSummaries) {
 	fmt.Printf("\n")
 }
 
-func AppendMetadata(dpath string, smry *LatSummaries) {
+func AppendMetadata(dpath string, smry *LogSummaries) {
 	fcmd_filenames := []string{"command.json", "test.json"}
 	dir := path.Dir(dpath)
 

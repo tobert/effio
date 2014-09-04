@@ -17,6 +17,8 @@ import (
 // and eventually run so it can be exported with all results.
 type FioCommand struct {
 	Name        string      `json:"name"`          // name to be used in commands, files, etc.
+	FioName     string      `json:"fio_name"`      // name of the fio template
+	SuiteName   string      `json:"suite_name"`    // name of the run suite
 	Path        string      `json:"path"`          // directory for writing configs, logs, etc.
 	MinTs       time.Time   `json:"min_ts"`        // timestamp right before starting fio
 	MaxTs       time.Time   `json:"max_ts"`        // timestamp right after the process exits

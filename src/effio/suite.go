@@ -88,6 +88,8 @@ func (suite *Suite) Populate(dl Devices, ftl FioConfTmpls) {
 			// fio adds _$type.log to log file names so only provide the base name
 			fcmd := FioCommand{
 				Name:        fcmdName,
+				FioName:     tp.Name,
+				SuiteName:   suite.Name,
 				Path:        fcmdPath,
 				FioArgs:     args,
 				FioFile:     "config.fio",

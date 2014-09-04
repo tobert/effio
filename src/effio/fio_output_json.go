@@ -85,7 +85,8 @@ type FioJsonDiskUtil struct {
 type FioJsonData struct {
 	Filename      string            `json:"filename"`
 	FioVersion    string            `json:"fio version"`
-	HeaderGarbage string            `json:"garbage"`
+	HeaderGarbage string            `json:"header_garbage"`
+	FooterGarbage string            `json:"footer_garbage"`
 	Jobs          []FioJsonJob      `json:"jobs"`
 	DiskUtil      []FioJsonDiskUtil `json:"disk_util"`
 }
@@ -109,12 +110,19 @@ func LoadFioJsonData(filename string) (fdata FioJsonData) {
 		offset = 0
 	}
 
-	err = json.Unmarshal(dataBytes[offset:], &fdata)
+	// sometimes it also puts junk at the end of the file
+	eof := bytes.Index(dataBytes, []byte("\n}"))
+	if eof < offset {
+		eof = len(dataBytes)
+	}
+
+	err = json.Unmarshal(dataBytes[offset:eof+2], &fdata)
 	if err != nil {
-		log.Fatalf("Could not parse JSON: %s", err)
+		log.Fatalf("Could not parse fio --output=json JSON in file '%s': %s", filename, err)
 	}
 
 	fdata.HeaderGarbage = string(dataBytes[0:offset])
+	fdata.FooterGarbage = string(dataBytes[eof+1:])
 
 	return
 }

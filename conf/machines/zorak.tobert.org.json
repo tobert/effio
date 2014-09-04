@@ -61,7 +61,7 @@
     "mountpoint": "/mnt/effio/seagate_constellation_7200_st9500430ss",
     "notes": "",
     "ignore": false,
-    "device": "/dev/disk/by-id/wwn-0x5000c5000d7ff53f-part1",
+    "device": "/dev/disk/by-id/wwn-0x5000c5000d7f96db-part1",
     "filesystem": "ext4",
     "brand": "Seagate",
     "series": "ST9500430SS",

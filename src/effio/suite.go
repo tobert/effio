@@ -66,9 +66,10 @@ func (suite *Suite) Run(rerun bool) {
 		}
 
 		fmt.Printf("Running benchmark %q ...\n", fcmd.Name)
-		started := time.Now()
+		fcmd.MinTs = time.Now()
 		fcmd.Run()
-		elapsed := time.Now().Sub(started)
+		fcmd.MaxTs = time.Now()
+		elapsed := fcmd.MaxTs.Sub(fcmd.MinTs)
 		fmt.Printf("Finished benchmark %q in %s.\n", fcmd.Name, elapsed.String())
 	}
 

@@ -16,9 +16,9 @@ import (
 // reason base fio configs can't use envvars, but it does make reproducing
 // results less accurate
 type FioConfTmpl struct {
-	Filename string // full path to the source file
-	Name     string // used to generate output filenames
-	tmpl     *template.Template
+	Filename string             `json:"filename"` // full path to the source file
+	Name     string             `json:"name"`     // used to generate output filenames
+	tmpl     *template.Template `json:"-"`
 }
 
 type FioConfTmpls []FioConfTmpl

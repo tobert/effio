@@ -65,13 +65,21 @@ func (cmd *Cmd) SummarizeAll() {
 			continue
 		}
 
-		recs := LoadFioLog(file)
-		smry := recs.Summarize(hbktFlag)
-		AppendMetadata(file, &smry)
-
 		// output filename is SHA1 of the source file
 		sha1sum := sha1file(file)
 		outpath := path.Join(outFlag, fmt.Sprintf("%s.json", sha1sum))
+
+		// skip files that have been processed
+		fi, err = os.Stat(outpath)
+		if err == nil && fi.Size() > 0 {
+			continue
+		}
+
+		recs := LoadFioLog(file)
+		smry := recs.Summarize(hbktFlag)
+		smry.Name = path.Base(file)
+		smry.Path = file
+		AppendMetadata(file, &smry)
 
 		out, err := os.OpenFile(outpath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
 		if err != nil {

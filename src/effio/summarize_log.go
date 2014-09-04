@@ -49,6 +49,8 @@ func NewLogHgram(size int) LogHgram {
 }
 
 type LogSummaries struct {
+	Name string // base name of the logfile (e.g. lat_lat.log)
+	Path string // full path to the file read
 	// the fio command used to generate the file
 	FioCommand FioCommand `json:"fio_command"`
 	// data from the output of fio --output=json
@@ -220,7 +222,8 @@ func bucketSize(buckets int, available int) int {
 	} else if available == 0 {
 		return 0
 	} else {
-		panic(fmt.Sprintf("Sample count (%d) < Bucket count (%d): returning bucket size of 1.\n", available, buckets))
+		fmt.Printf("Sample count (%d) < Bucket count (%d): returning bucket size of 1.\n", available, buckets)
+		return 1
 	}
 }
 
@@ -256,7 +259,14 @@ func (bucket LogRecs) updateBucket(bktidx int, hgidx int, hgram LogHgram, lrs Lo
 		// which is shortened as needed
 		bslice := bucket[0:]
 		if lridx == len(lrs)-1 {
-			bslice = bucket[0:bktidx]
+			if bktidx > 0 {
+				bslice = bucket[0 : bktidx+1]
+			} else {
+				// end of data and the bucket is empty
+				fmt.Println("BUG? Bucket size calculation error. Reached end of data and bucket is empty.")
+				fmt.Printf("     %d rows -> %d buckets -> %d bktidx\n", len(lrs), len(bucket), bktidx)
+				return 0, hgidx + 1
+			}
 		}
 
 		// count and sum up all entries, find min/max timestamp
@@ -274,7 +284,7 @@ func (bucket LogRecs) updateBucket(bktidx int, hgidx int, hgram LogHgram, lrs Lo
 		}
 
 		// get the median/p50 and average values
-		hs.Median = uint64(bslice[len(bslice)/2].Val)
+		hs.Median = uint64(bslice[(len(bslice)-1)/2].Val)
 		hs.Average = float64(hs.Sum) / float64(hs.Count)
 
 		// add up the squares of each value's delta from average

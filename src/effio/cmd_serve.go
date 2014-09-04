@@ -67,7 +67,7 @@ func InventoryData(dpath string) []string {
 		}
 
 		if strings.HasSuffix(dpath, ".json") {
-			out = append(out, strings.TrimPrefix(dpath, "public/"))
+			out = append(out, strings.TrimPrefix(dpath, "public"))
 		}
 
 		return nil

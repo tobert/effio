@@ -26,4 +26,6 @@ filename_format=fiodata.$jobnum
 [{{ .Name }}]
 description="random 1M 25/75 read/write peak bandwidth, 4 jobs"
 write_lat_log={{ .FioLatLog }}
+write_bw_log={{ .FioBWLog }}
+write_iops_log={{ .FioIopsLog }}
 

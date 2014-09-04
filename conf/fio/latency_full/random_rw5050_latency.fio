@@ -27,4 +27,6 @@ filename_format=fiodata.$filenum
 [{{ .Name }}]
 description="random {{ .Device.Blocksize }}b 50/50 read/write latency, 1 job"
 write_lat_log={{ .FioLatLog }}
+write_bw_log={{ .FioBWLog }}
+write_iops_log={{ .FioIopsLog }}
 

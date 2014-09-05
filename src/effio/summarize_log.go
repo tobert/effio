@@ -2,6 +2,7 @@ package effio
 
 import (
 	"fmt"
+	"log"
 	"math"
 	"sort"
 )
@@ -49,8 +50,9 @@ func NewLogHgram(size int) LogHgram {
 }
 
 type LogSummaries struct {
-	Name string // base name of the logfile (e.g. lat_lat.log)
-	Path string // full path to the file read
+	Name    string `json:"name"`     // base name of the logfile (e.g. lat_lat.log)
+	Path    string `json:"path"`     // full path to the file read
+	LogType string `json:"log_type"` // e.g. bw, lat, slat, clat, iops
 	// the fio command used to generate the file
 	FioCommand FioCommand `json:"fio_command"`
 	// data from the output of fio --output=json
@@ -179,11 +181,11 @@ func (lrs LogRecs) Histograms(histogram_size int) (all, read, write, trim LogHgr
 	for i, lr := range lrs {
 		arec, acnt = abkt.updateBucket(arec, acnt, all, lrs, i)
 
-		if lr.Ddir == 0 {
+		if lr.Ddir == 0 && read_count > histogram_size {
 			rrec, rcnt = rbkt.updateBucket(rrec, rcnt, read, lrs, i)
-		} else if lr.Ddir == 1 {
+		} else if lr.Ddir == 1 && write_count > histogram_size {
 			wrec, wcnt = wbkt.updateBucket(wrec, wcnt, write, lrs, i)
-		} else if lr.Ddir == 2 {
+		} else if lr.Ddir == 2 && trim_count > histogram_size {
 			trec, tcnt = tbkt.updateBucket(trec, tcnt, trim, lrs, i)
 		}
 	}
@@ -215,16 +217,15 @@ func percentiles(lrs LogRecs) LogPcntl {
 	return out
 }
 
-// compute the bucket size, default to 1 if less than histogram_size
+// compute the bucket size
 func bucketSize(buckets int, available int) int {
-	if buckets < available {
-		return int(math.Ceil(float64(available) / float64(buckets)))
-	} else if available == 0 {
+	if available < buckets {
 		return 0
-	} else {
-		fmt.Printf("Sample count (%d) < Bucket count (%d): returning bucket size of 1.\n", available, buckets)
-		return 1
 	}
+	// bucket size * bucket count must always be >= record count
+	// updateBucket() handles partially filled buckets just fine
+	sz := math.Ceil(float64(available) / float64(buckets))
+	return int(sz)
 }
 
 // Adds the value to the bucket at index bktidx using the LogRec at lrs[lridx].
@@ -240,6 +241,11 @@ func bucketSize(buckets int, available int) int {
 // lridx: current index into the source data slice
 // Returns: (new bucket index, new histogram index)
 func (bucket LogRecs) updateBucket(bktidx int, hgidx int, hgram LogHgram, lrs LogRecs, lridx int) (int, int) {
+	// if the bucket is len 0, there weren't enough samples, nothing to do here
+	if len(bucket) == 0 {
+		return 0, 0
+	}
+
 	// add the current LogRec to the bucket
 	bucket[bktidx] = lrs[lridx]
 
@@ -247,7 +253,7 @@ func (bucket LogRecs) updateBucket(bktidx int, hgidx int, hgram LogHgram, lrs Lo
 	if bktidx < len(bucket)-1 && lridx < len(lrs)-1 {
 		return bktidx + 1, hgidx
 		// bucket is full or end of data, sum it & advance to the next histogram entry
-	} else {
+	} else if bktidx == len(bucket)-1 || lridx == len(lrs)-1 {
 		hs := LogSmry{}
 
 		// finding max/min ts by indices would usually work, but the backing LogRecs
@@ -262,10 +268,8 @@ func (bucket LogRecs) updateBucket(bktidx int, hgidx int, hgram LogHgram, lrs Lo
 			if bktidx > 0 {
 				bslice = bucket[0 : bktidx+1]
 			} else {
-				// end of data and the bucket is empty
-				fmt.Println("BUG? Bucket size calculation error. Reached end of data and bucket is empty.")
-				fmt.Printf("     %d rows -> %d buckets -> %d bktidx\n", len(lrs), len(bucket), bktidx)
-				return 0, hgidx + 1
+				// end of data and the bucket is empty means bucket size is wrong
+				log.Fatalf("BUG! Bucket size calculation error. Reached end of data and bucket is empty.")
 			}
 		}
 
@@ -306,7 +310,11 @@ func (bucket LogRecs) updateBucket(bktidx int, hgidx int, hgram LogHgram, lrs Lo
 
 		// bucket is now summed & stored at hgidx, reset the bucket index to 0
 		return 0, hgidx + 1
+	} else {
+		log.Fatalf("BUG: bktidx: %d, len(bucket): %d, lridx: %d, len(lrs): %d\n", bktidx, len(bucket), lridx, len(lrs))
+		return 0, 0 // unreachable, exists to make the compiler happy
 	}
+
 }
 
 // JSON doesn't officially support anything but strings as keys

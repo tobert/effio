@@ -1,0 +1,20 @@
+[
+  {
+    "name": "ec2-i2_xlarge-ssd",
+    "notes": "EC2 i2.xlarge",
+    "ignore": false,
+    "device": "/dev/xvdb1",
+    "mountpoint": "/mnt/tmp",
+    "filesystem": "ext4",
+    "brand": "Amazon",
+    "series": "SSD",
+    "datasheet": "",
+    "capacity": 800165027840,
+    "rotational": false,
+    "transport": "virtio",
+    "hba": "xenblock",
+    "media": "MLC",
+    "blocksize": 4096,
+    "rpm": 0
+  }
+]

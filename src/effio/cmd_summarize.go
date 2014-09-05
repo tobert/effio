@@ -9,6 +9,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"strings"
 )
 
 func (cmd *Cmd) SummarizeCSV() {
@@ -79,6 +80,21 @@ func (cmd *Cmd) SummarizeAll() {
 		smry := recs.Summarize(hbktFlag)
 		smry.Name = path.Base(file)
 		smry.Path = file
+
+		parts := strings.Split(smry.Name, ".")
+		switch parts[0] {
+		case "bw_bw":
+			smry.LogType = "bw"
+		case "lat_lat":
+			smry.LogType = "lat"
+		case "lat_slat":
+			smry.LogType = "slat"
+		case "lat_clat":
+			smry.LogType = "clat"
+		case "iops_iops":
+			smry.LogType = "iops"
+		}
+
 		AppendMetadata(file, &smry)
 
 		out, err := os.OpenFile(outpath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
@@ -91,7 +107,21 @@ func (cmd *Cmd) SummarizeAll() {
 
 func InventoryCSVFiles(dpath string) []string {
 	out := make([]string, 0)
-	wanted := []string{"bw_bw.log", "lat_lat.log", "lat_slat.log", "lat_clat.log", "iops_iops.log"}
+	// WARNING: using assumptions based on effio conventions
+	roots := []string{"bw_bw", "lat_lat", "lat_slat", "lat_clat", "iops_iops"}
+	wanted := make([]string, 30)
+
+	// WARNING: generate all the names I've seen. This is a big fragile. For example,
+	// it will ignore logs > 5 e.g. bw_bw.8.log would be ignored.
+	count := 0
+	for i, top := range roots {
+		wanted[count] = fmt.Sprintf("%s.log", top)
+		count++
+		for _, name := range roots {
+			wanted[count] = fmt.Sprintf("%s.%d.log", name, i)
+			count++
+		}
+	}
 
 	visitor := func(dpath string, f os.FileInfo, err error) error {
 		if err != nil {

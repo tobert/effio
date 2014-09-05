@@ -47,9 +47,22 @@ func (cmd *Cmd) ServeHTTP() {
 }
 
 func (cmd *Cmd) InventoryDataHandler(w http.ResponseWriter, r *http.Request) {
-	items := InventoryData(cmd.PathFlag)
+	files := InventoryData(cmd.PathFlag)
 
-	json, err := json.Marshal(items)
+	// separate logfiles by log type
+	// there are 5 log types (for now)
+	out := make(map[string][]string, 5)
+	for _, file := range files {
+		base := strings.TrimSuffix(file, ".json")
+		logtype := strings.Split(base, "-")[1]
+
+		if _, ok := out[logtype]; !ok {
+			out[logtype] = make([]string, 0)
+		}
+		out[logtype] = append(out[logtype], file)
+	}
+
+	json, err := json.Marshal(out)
 	if err != nil {
 		log.Printf("JSON marshal failed: %s\n", err)
 		http.Error(w, fmt.Sprintf("Marshaling JSON failed: %s", err), 500)

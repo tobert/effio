@@ -2,7 +2,6 @@ package effio
 
 import (
 	"fmt"
-	"log"
 	"math"
 	"sort"
 )
@@ -25,7 +24,7 @@ func (p LogRecs) Less(i, j int) bool { return p[i].Val < p[j].Val }
 func (p LogRecs) Swap(i, j int)      { p[i].Val, p[j].Val = p[j].Val, p[i].Val }
 
 // Log Bucket Summary: a handful of useful values for each bucket in
-// the LogHgram.
+// the LogBin.
 type LogSmry struct {
 	Min     uint32   `json:"min"`
 	Max     uint32   `json:"max"`
@@ -39,10 +38,10 @@ type LogSmry struct {
 	Elapsed uint32   `json:"elapsed"`
 	Pcntl   LogPcntl `json:"percentiles"`
 }
-type LogHgram []*LogSmry
+type LogBin []*LogSmry
 
-func NewLogHgram(size int) LogHgram {
-	lhg := make(LogHgram, size)
+func NewLogBin(size int) LogBin {
+	lhg := make(LogBin, size)
 	for i, _ := range lhg {
 		lhg[i] = &LogSmry{}
 	}
@@ -61,32 +60,32 @@ type LogSummaries struct {
 	Summary LogSmry `json:"summary"`
 	// all 99 percentiles + 99.9, 99.99, and 99.999%
 	Pcntl LogPcntl `json:"percentiles"`
-	// histogram across all samples, then by io direction
-	Histogram  LogHgram `json:"histogram"`       // hgram of all records
-	RHistogram LogHgram `json:"read_histogram"`  // hgram of all read ops
-	WHistogram LogHgram `json:"write_histogram"` // hgram of all write ops
-	THistogram LogHgram `json:"trim_histogram"`  // hgram of all trim ops
+	// bin across all samples, then by io direction
+	Bin  LogBin `json:"bin"`       // binned version of all records
+	RBin LogBin `json:"read_bin"`  // read ops
+	WBin LogBin `json:"write_bin"` // write ops
+	TBin LogBin `json:"trim_bin"`  // trim ops
 	// capture outliers by preserving full resolution for metrics <P1 and >P99
-	P1Histogram   LogHgram `json:"p1_histogram"`        // hgram of records with values < P1
-	P1RHistogram  LogHgram `json:"p1_read_histogram"`   // hgram <P1 / read
-	P1WHistogram  LogHgram `json:"p1_write_histogram"`  // hgram <P1 / write
-	P1THistogram  LogHgram `json:"p1_trim_histogram"`   // hgram <P1 / trim
-	P99Histogram  LogHgram `json:"p99_histogram"`       // hgram of records with values > P99
-	P99RHistogram LogHgram `json:"p99_read_histogram"`  // hgram >P99 / read
-	P99WHistogram LogHgram `json:"p99_write_histogram"` // hgram >P99 / write
-	P99THistogram LogHgram `json:"p99_trim_histogram"`  // hgram >P99 / trim
+	P1Bin   LogBin `json:"p1_bin"`        // bin from records with values < P1
+	P1RBin  LogBin `json:"p1_read_bin"`   // <P1 / read
+	P1WBin  LogBin `json:"p1_write_bin"`  // <P1 / write
+	P1TBin  LogBin `json:"p1_trim_bin"`   // <P1 / trim
+	P99Bin  LogBin `json:"p99_bin"`       // records with values > P99
+	P99RBin LogBin `json:"p99_read_bin"`  // >P99 / read
+	P99WBin LogBin `json:"p99_write_bin"` // >P99 / write
+	P99TBin LogBin `json:"p99_trim_bin"`  // >P99 / trim
 }
 
 // Summarizes the LogRecs data into a LogSmry.
 // First argument is the number of samples to put in the summaries.
-// Second argument is the number of buckets in the histograms.
+// Second argument is the number of buckets in the bins.
 // This does all the work in 3 passes, the first getting avg/min/max.
 // Then the values are sorted to access the percentiles by index.
 // The final pass computes the standard deviation, which requires the average
 // from the first pass.
-func (lrs LogRecs) Summarize(histogram_size int) (ld LogSummaries) {
-	if histogram_size > len(lrs) {
-		histogram_size = len(lrs)
+func (lrs LogRecs) Summarize(bins int) (ld LogSummaries) {
+	if bins > len(lrs) {
+		bins = len(lrs)
 	}
 
 	smry := LogSmry{
@@ -128,7 +127,7 @@ func (lrs LogRecs) Summarize(histogram_size int) (ld LogSummaries) {
 	ld.Summary = smry
 
 	// warning: will do some sorting on slices, keep it at the bottom of this func
-	ld.Histogram, ld.RHistogram, ld.WHistogram, ld.THistogram = lrs.Histograms(histogram_size)
+	ld.Bin, ld.RBin, ld.WBin, ld.TBin = lrs.Bins(bins)
 
 	// warning: reorders lrs by value, it is no longer in time order!
 	sort.Sort(lrs)
@@ -136,59 +135,15 @@ func (lrs LogRecs) Summarize(histogram_size int) (ld LogSummaries) {
 	// populates the percentiles map with another pass over lrs
 	ld.Pcntl = percentiles(lrs)
 
-	// Find the index of the 1st percentile, then build histograms on the slice from 0 to P1
+	// Find the index of the 1st percentile, then build bins on the slice from 0 to P1
 	p1idx := ld.Pcntl[1].Idx
 	p1lrs := lrs[:p1idx]
-	ld.P1Histogram, ld.P1RHistogram, ld.P1WHistogram, ld.P1THistogram = p1lrs.Histograms(histogram_size)
+	ld.P1Bin, ld.P1RBin, ld.P1WBin, ld.P1TBin = p1lrs.Bins(bins)
 
-	// Find the index of the 99th percentile, then build histograms on the slice from P99 to the last sample
+	// Find the index of the 99th percentile, then build bins on the slice from P99 to the last sample
 	p99idx := ld.Pcntl[99].Idx
 	p99lrs := lrs[p99idx:]
-	ld.P99Histogram, ld.P99RHistogram, ld.P99WHistogram, ld.P99THistogram = p99lrs.Histograms(histogram_size)
-
-	return
-}
-
-func (lrs LogRecs) Histograms(histogram_size int) (all, read, write, trim LogHgram) {
-	all = NewLogHgram(histogram_size)   // all-IO histogram
-	read = NewLogHgram(histogram_size)  // reads histogram
-	write = NewLogHgram(histogram_size) // writes histogram
-	trim = NewLogHgram(histogram_size)  // trims histogram
-
-	// one pass to count each direction of IO
-	var all_count, read_count, write_count, trim_count int
-	for _, lr := range lrs {
-		all_count++
-		if lr.Ddir == 0 {
-			read_count++
-		} else if lr.Ddir == 1 {
-			write_count++
-		} else if lr.Ddir == 2 {
-			trim_count++
-		}
-	}
-
-	var arec, rrec, wrec, trec int // next record index
-	var acnt, rcnt, wcnt, tcnt int // bucket counter
-
-	// bucketSize() returns rounded (count / buckets) with error checking
-	abkt := make(LogRecs, bucketSize(histogram_size, all_count))
-	rbkt := make(LogRecs, bucketSize(histogram_size, read_count))
-	wbkt := make(LogRecs, bucketSize(histogram_size, write_count))
-	tbkt := make(LogRecs, bucketSize(histogram_size, trim_count))
-
-	// TODO: document this algorithm for one pass bucket filling
-	for i, lr := range lrs {
-		arec, acnt = abkt.updateBucket(arec, acnt, all, lrs, i)
-
-		if lr.Ddir == 0 && read_count > histogram_size {
-			rrec, rcnt = rbkt.updateBucket(rrec, rcnt, read, lrs, i)
-		} else if lr.Ddir == 1 && write_count > histogram_size {
-			wrec, wcnt = wbkt.updateBucket(wrec, wcnt, write, lrs, i)
-		} else if lr.Ddir == 2 && trim_count > histogram_size {
-			trec, tcnt = tbkt.updateBucket(trec, tcnt, trim, lrs, i)
-		}
-	}
+	ld.P99Bin, ld.P99RBin, ld.P99WBin, ld.P99TBin = p99lrs.Bins(bins)
 
 	return
 }
@@ -207,7 +162,7 @@ func percentiles(lrs LogRecs) LogPcntl {
 	for i = 1; i <= 99; i += 1 {
 		idx := pctl_idx(i)
 		out[i] = lrs[idx]
-		out[i].Idx = uint32(idx) // track index for building P1/P99 histograms
+		out[i].Idx = uint32(idx) // track index for building P1/P99 bins
 	}
 
 	out[99.9] = lrs[pctl_idx(99.9)]
@@ -217,15 +172,68 @@ func percentiles(lrs LogRecs) LogPcntl {
 	return out
 }
 
+func (lrs LogRecs) Bins(bins int) (all, read, write, trim LogBin) {
+	all = NewLogBin(bins)   // all-IO bin
+	read = NewLogBin(bins)  // reads bin
+	write = NewLogBin(bins) // writes bin
+	trim = NewLogBin(bins)  // trims bin
+
+	// one pass to count each direction of IO
+	var all_count, read_count, write_count, trim_count int
+	for _, lr := range lrs {
+		all_count++
+		if lr.Ddir == 0 {
+			read_count++
+		} else if lr.Ddir == 1 {
+			write_count++
+		} else if lr.Ddir == 2 {
+			trim_count++
+		}
+	}
+
+	var arec, rrec, wrec, trec int // next record index
+	var acnt, rcnt, wcnt, tcnt int // bucket counter
+
+	// bucketSize() returns floored (count / buckets) with error checking
+	// when these buckets are filled, they are aggregated then reused
+	abkt := make(LogRecs, bucketSize(bins, all_count))
+	rbkt := make(LogRecs, bucketSize(bins, read_count))
+	wbkt := make(LogRecs, bucketSize(bins, write_count))
+	tbkt := make(LogRecs, bucketSize(bins, trim_count))
+
+	// TODO: document this algorithm for one pass bucket filling
+	for i, lr := range lrs {
+		// check bounds on each call: when bin_width * bins < record_count
+		// care must be taken to not call updateBucket which may try to write
+		// a bin entry beyond the end of the slice
+		if arec < len(rbkt) && acnt < bins {
+			arec, acnt = abkt.updateBucket(arec, acnt, all, lrs, i)
+		}
+
+		if lr.Ddir == 0 && rrec < len(rbkt) && rcnt < bins {
+			rrec, rcnt = rbkt.updateBucket(rrec, rcnt, read, lrs, i)
+		} else if lr.Ddir == 1 && wrec < len(wbkt) && wcnt < bins {
+			wrec, wcnt = wbkt.updateBucket(wrec, wcnt, write, lrs, i)
+		} else if lr.Ddir == 2 && trec < len(tbkt) && tcnt < bins {
+			trec, tcnt = tbkt.updateBucket(trec, tcnt, trim, lrs, i)
+		}
+	}
+
+	return
+}
+
 // compute the bucket size
+// always take the floor of the value; a short bucket will have
+// a count that is skewed by the sample count. Since bucket count
+// is usually pretty small, 10-100, it's better to simply drop samples
+// that would be in a complete bucket rather than keeping them and having
+// all my graphs take a dive on the last sample
 func bucketSize(buckets int, available int) int {
 	if available < buckets {
 		return 0
 	}
-	// bucket size * bucket count must always be >= record count
-	// updateBucket() handles partially filled buckets just fine
-	sz := math.Ceil(float64(available) / float64(buckets))
-	return int(sz)
+
+	return int(math.Floor(float64(available) / float64(buckets)))
 }
 
 // Adds the value to the bucket at index bktidx using the LogRec at lrs[lridx].
@@ -235,25 +243,33 @@ func bucketSize(buckets int, available int) int {
 // It is safe to use the same bucket on each iteration to save allocation.
 //
 // bktidx: current bucket index
-// hgidx: current histogram index
-// hgram: histogram (list) - written to!
+// hgidx: current bin index
+// bin: destination bin (list) - written to!
 // lrs: source data slice
 // lridx: current index into the source data slice
-// Returns: (new bucket index, new histogram index)
-func (bucket LogRecs) updateBucket(bktidx int, hgidx int, hgram LogHgram, lrs LogRecs, lridx int) (int, int) {
-	// if the bucket is len 0, there weren't enough samples, nothing to do here
+// Returns: (new bucket index, new bin index)
+func (bucket LogRecs) updateBucket(bktidx int, hgidx int, bin LogBin, lrs LogRecs, lridx int) (int, int) {
+	// if the bucket is len 0, there weren't enough samples
 	if len(bucket) == 0 {
 		return 0, 0
 	}
 
+	// at max_lridx all buckets are full; remaining records must be dropped
+	max_lridx := (len(lrs) - (len(lrs) % len(bucket))) - 1
+
 	// add the current LogRec to the bucket
-	bucket[bktidx] = lrs[lridx]
+	if lridx <= max_lridx {
+		bucket[bktidx] = lrs[lridx]
+	}
 
 	// advance the bucket index, stay on the same summary index
-	if bktidx < len(bucket)-1 && lridx < len(lrs)-1 {
+	if bktidx < len(bucket)-1 && lridx < max_lridx {
 		return bktidx + 1, hgidx
-		// bucket is full or end of data, sum it & advance to the next histogram entry
-	} else if bktidx == len(bucket)-1 || lridx == len(lrs)-1 {
+		// discard leftover records after filling all buckets: see bucketSize()
+	} else if lridx > max_lridx {
+		return bktidx, hgidx
+		// bucket is full or end of data, sum it & advance to the next bin entry
+	} else if bktidx == len(bucket)-1 || lridx == max_lridx {
 		hs := LogSmry{}
 
 		// finding max/min ts by indices would usually work, but the backing LogRecs
@@ -265,12 +281,7 @@ func (bucket LogRecs) updateBucket(bktidx int, hgidx int, hgram LogHgram, lrs Lo
 		// which is shortened as needed
 		bslice := bucket[0:]
 		if lridx == len(lrs)-1 {
-			if bktidx > 0 {
-				bslice = bucket[0 : bktidx+1]
-			} else {
-				// end of data and the bucket is empty means bucket size is wrong
-				log.Fatalf("BUG! Bucket size calculation error. Reached end of data and bucket is empty.")
-			}
+			bslice = bucket[0 : bktidx+1]
 		}
 
 		// count and sum up all entries, find min/max timestamp
@@ -305,16 +316,14 @@ func (bucket LogRecs) updateBucket(bktidx int, hgidx int, hgram LogHgram, lrs Lo
 		sort.Sort(bslice)
 		hs.Pcntl = percentiles(bslice)
 
-		// save to the histogram summary
-		hgram[hgidx] = &hs
+		// save to the bin summary
+		bin[hgidx] = &hs
 
 		// bucket is now summed & stored at hgidx, reset the bucket index to 0
 		return 0, hgidx + 1
-	} else {
-		log.Fatalf("BUG: bktidx: %d, len(bucket): %d, lridx: %d, len(lrs): %d\n", bktidx, len(bucket), lridx, len(lrs))
-		return 0, 0 // unreachable, exists to make the compiler happy
 	}
 
+	panic("BUG! Unreachable!")
 }
 
 // JSON doesn't officially support anything but strings as keys

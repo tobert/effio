@@ -19,7 +19,7 @@ func (cmd *Cmd) SummarizeCSV() {
 
 	cmd.DefaultFlags()
 	cmd.FlagSet.StringVar(&inFlag, "in", "", "CSV file to load")
-	cmd.FlagSet.IntVar(&hbktFlag, "hbkt", 10, "number of histogram buckets")
+	cmd.FlagSet.IntVar(&hbktFlag, "hbkt", 10, "data bin width")
 	cmd.FlagSet.StringVar(&outFlag, "out", "", "CSV file to write")
 	cmd.FlagSet.BoolVar(&jsonFlag, "json", false, "Print JSON instead of human-readable text.")
 	cmd.ParseArgs()
@@ -41,7 +41,7 @@ func (cmd *Cmd) SummarizeAll() {
 	var outFlag string
 
 	cmd.DefaultFlags()
-	cmd.FlagSet.IntVar(&hbktFlag, "hbkt", 10, "number of histogram buckets")
+	cmd.FlagSet.IntVar(&hbktFlag, "hbkt", 10, "data bin width")
 	cmd.FlagSet.StringVar(&outFlag, "out", "public/data", "directory to write summaries to")
 	cmd.ParseArgs()
 
@@ -156,7 +156,7 @@ func InventoryCSVFiles(dpath string) []string {
 }
 
 func toJson(smry LogSummaries) []byte {
-	js, err := json.MarshalIndent(smry, "", "\t")
+	js, err := json.Marshal(smry)
 	if err != nil {
 		fmt.Printf("Failed to encode summary data as JSON: %s\n", err)
 		os.Exit(1)
@@ -180,20 +180,20 @@ func printSummary(smry LogSummaries) {
 	fmt.Printf("P90:   % 8d P95:    % 8d P99:     % 8d\n", smry.Pcntl[90].Val, smry.Pcntl[95].Val, smry.Pcntl[99].Val)
 	fmt.Printf("P99.9: % 8d P99.99: % 8d P99.999: % 8d\n", smry.Pcntl[99.9].Val, smry.Pcntl[99.99].Val, smry.Pcntl[99.999].Val)
 
-	fmt.Printf("\nAll Histogram[% 4d]:   ", len(smry.Histogram))
-	for _, bkt := range smry.Histogram {
+	fmt.Printf("\nAll Binned Data[% 4d]:   ", len(smry.Bin))
+	for _, bkt := range smry.Bin {
 		fmt.Printf("% 7.3f ", bkt.Average)
 	}
-	fmt.Printf("\nRead Histogram[% 4d]:  ", len(smry.RHistogram))
-	for _, bkt := range smry.RHistogram {
+	fmt.Printf("\nRead Binned Data[% 4d]:  ", len(smry.RBin))
+	for _, bkt := range smry.RBin {
 		fmt.Printf("% 7.3f ", bkt.Average)
 	}
-	fmt.Printf("\nWrite Histogram[% 4d]: ", len(smry.WHistogram))
-	for _, bkt := range smry.WHistogram {
+	fmt.Printf("\nWrite Binned Data[% 4d]: ", len(smry.WBin))
+	for _, bkt := range smry.WBin {
 		fmt.Printf("% 7.3f ", bkt.Average)
 	}
-	fmt.Printf("\nTrim Histogram[% 4d]:  ", len(smry.THistogram))
-	for _, bkt := range smry.THistogram {
+	fmt.Printf("\nTrim Binned Data[% 4d]:  ", len(smry.TBin))
+	for _, bkt := range smry.TBin {
 		fmt.Printf("% 7.3f ", bkt.Average)
 	}
 	fmt.Printf("\n")

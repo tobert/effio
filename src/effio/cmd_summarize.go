@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"time"
 )
 
 func (cmd *Cmd) SummarizeCSV() {
@@ -67,6 +68,8 @@ func (cmd *Cmd) SummarizeAll() {
 			continue
 		}
 
+		started := time.Now()
+
 		recs := LoadFioLog(file)
 		smry := recs.Summarize(hbktFlag)
 		smry.Name = path.Base(file)
@@ -97,6 +100,9 @@ func (cmd *Cmd) SummarizeAll() {
 			log.Fatalf("Could not open file '%s' for write: %s\n", outpath, err)
 		}
 		out.Write(toJson(smry))
+
+		elapsed := time.Now().Sub(started)
+		fmt.Printf("Generated %q from %q in %s\n", outpath, file, elapsed)
 	}
 }
 

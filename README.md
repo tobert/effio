@@ -8,6 +8,12 @@ Tools for running suites of tests with fio, capturing the output, then generatin
 This tool establishes and automates a few conventions for managing tests with the goal
 of making those tests manageable and repeatable.
 
+Warning
+-------
+
+effio only supports fio 2.1.9. Later versions write one logfile per job which is not
+supported for merging yet.
+
 Usage
 -----
 

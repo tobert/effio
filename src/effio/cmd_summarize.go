@@ -9,6 +9,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"regexp"
 	"strings"
 )
 
@@ -101,21 +102,7 @@ func (cmd *Cmd) SummarizeAll() {
 
 func InventoryCSVFiles(dpath string) []string {
 	out := make([]string, 0)
-	// WARNING: using assumptions based on effio conventions
-	roots := []string{"bw_bw", "lat_lat", "lat_slat", "lat_clat", "iops_iops"}
-	wanted := make([]string, 30)
-
-	// WARNING: generate all the names I've seen. This is a big fragile. For example,
-	// it will ignore logs > 5 e.g. bw_bw.8.log would be ignored.
-	count := 0
-	for i, top := range roots {
-		wanted[count] = fmt.Sprintf("%s.log", top)
-		count++
-		for _, name := range roots {
-			wanted[count] = fmt.Sprintf("%s.%d.log", name, i)
-			count++
-		}
-	}
+	re := "(bw_bw|lat_lat|lat_slat|lat_clat|iops_iops)\\.?\\d*\\.log$"
 
 	visitor := func(dpath string, f os.FileInfo, err error) error {
 		if err != nil {
@@ -132,10 +119,13 @@ func InventoryCSVFiles(dpath string) []string {
 			return nil
 		}
 
-		for _, want := range wanted {
-			if path.Base(dpath) == want {
-				out = append(out, dpath)
-			}
+		// WARNING: using assumptions based on effio conventions
+		matched, err := regexp.MatchString(re, dpath)
+		if err != nil {
+			panic(err)
+		}
+		if matched {
+			out = append(out, dpath)
 		}
 
 		return nil

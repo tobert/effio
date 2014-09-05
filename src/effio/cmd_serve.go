@@ -50,8 +50,7 @@ func (cmd *Cmd) InventoryDataHandler(w http.ResponseWriter, r *http.Request) {
 	files := InventoryData(cmd.PathFlag)
 
 	// separate logfiles by log type
-	// there are 5 log types (for now)
-	out := make(map[string][]string, 5)
+	out := make(map[string][]string)
 	for _, file := range files {
 		base := strings.TrimSuffix(file, ".json")
 		logtype := strings.Split(base, "-")[1]

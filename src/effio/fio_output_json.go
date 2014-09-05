@@ -130,14 +130,14 @@ func LoadFioJsonData(filename string) (fdata FioJsonData) {
 // some of the bucket keys are in the form ">=50.00" which of course
 // cannot be unmarshaled into a number, so clean that up before trying
 func (hst *FioJsonHistogram) UnmarshalJSON(data []byte) error {
-	hststr := make(map[string]float64, len(data)/8)
+	hststr := make(map[string]float64)
 
 	err := json.Unmarshal(data, &hststr)
 	if err != nil {
 		return err
 	}
 
-	out := make(FioJsonHistogram, len(hststr))
+	out := make(FioJsonHistogram)
 
 	for k, v := range hststr {
 		// remove the ">=" fio puts in some of the keys

@@ -276,16 +276,8 @@ func (bucket LogRecs) updateBucket(bktidx int, hgidx int, bin LogBin, lrs LogRec
 		// is sorted in place at times, so be safe and do it the hard way
 		hs.MinTs = math.MaxUint32
 
-		// bucket is a static size, but at the end of a dataset there might not
-		// be enough samples to fill it, so always use `bslice` instead of `bucket` here
-		// which is shortened as needed
-		bslice := bucket[0:]
-		if lridx == len(lrs)-1 {
-			bslice = bucket[0 : bktidx+1]
-		}
-
 		// count and sum up all entries, find min/max timestamp
-		for _, lr := range bslice {
+		for _, lr := range bucket {
 			hs.Sum += uint64(lr.Val)
 			hs.Count++
 
@@ -299,12 +291,12 @@ func (bucket LogRecs) updateBucket(bktidx int, hgidx int, bin LogBin, lrs LogRec
 		}
 
 		// get the median/p50 and average values
-		hs.Median = uint64(bslice[(len(bslice)-1)/2].Val)
+		hs.Median = uint64(bucket[(len(bucket)-1)/2].Val)
 		hs.Average = float64(hs.Sum) / float64(hs.Count)
 
 		// add up the squares of each value's delta from average
 		var dsum float64
-		for _, lr := range bslice {
+		for _, lr := range bucket {
 			dsum += math.Pow(float64(lr.Val)-hs.Average, 2)
 		}
 
@@ -313,8 +305,10 @@ func (bucket LogRecs) updateBucket(bktidx int, hgidx int, bin LogBin, lrs LogRec
 		hs.Stdev = math.Sqrt(variance)
 
 		// sort by value then get the percentiles
-		sort.Sort(bslice)
-		hs.Pcntl = percentiles(bslice)
+		sort.Sort(bucket)
+		hs.Pcntl = percentiles(bucket)
+
+		fmt.Printf("hs.Pcntl: %v\n", hs.Pcntl)
 
 		// save to the bin summary
 		bin[hgidx] = &hs

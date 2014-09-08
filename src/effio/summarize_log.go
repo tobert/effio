@@ -11,17 +11,23 @@ import (
 type LogRec struct {
 	Time uint32 `json:"time"`  // time offset from beginning of fio run
 	Val  uint32 `json:"value"` // latency value in usec
-	Ddir uint8  `json:"-"`     // 0 = read, 1 = write, 2 = trim
-	Bsz  uint16 `json:"-"`     // block size
-	Idx  uint32 `json:"-"`     // save the original index in LogRecs
+	Ddir uint8  `json:"ddir"`  // 0 = read, 1 = write, 2 = trim
+	Bsz  uint16 `json:"bsz"`   // block size
+	Idx  uint32 `json:"idx"`   // save the original index in LogRecs
 }
 type LogPcntl map[float64]*LogRec // .MarshalJSON() at EOF
 type LogRecs []*LogRec
 
-// sort interface impl, sorts by value for indexing percentiles
+// default to sorting by time order
 func (p LogRecs) Len() int           { return len(p) }
-func (p LogRecs) Less(i, j int) bool { return p[i].Val < p[j].Val }
-func (p LogRecs) Swap(i, j int)      { p[i].Val, p[j].Val = p[j].Val, p[i].Val }
+func (p LogRecs) Less(i, j int) bool { return p[i].Time < p[j].Time }
+func (p LogRecs) Swap(i, j int)      { p[i].Time, p[j].Time = p[j].Time, p[i].Time }
+
+// sorts by value for indexing percentiles
+type LogRecsByVal LogRecs
+func (p LogRecsByVal) Len() int           { return len(p) }
+func (p LogRecsByVal) Less(i, j int) bool { return p[i].Val < p[j].Val }
+func (p LogRecsByVal) Swap(i, j int)      { p[i].Val, p[j].Val = p[j].Val, p[i].Val }
 
 // Log Bucket Summary: a handful of useful values for each bucket in
 // the LogBin.
@@ -129,9 +135,6 @@ func (lrs LogRecs) Summarize(bins int) (ld LogSummaries) {
 	// warning: will do some sorting on slices, keep it at the bottom of this func
 	ld.Bin, ld.RBin, ld.WBin, ld.TBin = lrs.Bins(bins)
 
-	// warning: reorders lrs by value, it is no longer in time order!
-	sort.Sort(lrs)
-
 	// populates the percentiles map with another pass over lrs
 	ld.Pcntl = percentiles(lrs)
 
@@ -148,9 +151,12 @@ func (lrs LogRecs) Summarize(bins int) (ld LogSummaries) {
 	return
 }
 
-// expects lrs to be pre-sorted
+// sorts lrs to value order then re-sorts back to time before returning
 func percentiles(lrs LogRecs) LogPcntl {
-	out := make(LogPcntl, 102)
+	sort.Sort(LogRecsByVal(lrs))
+	defer sort.Sort(lrs)
+
+	out := make(LogPcntl)
 
 	pctl_idx := func(pc float64) int {
 		idx := math.Floor(float64(len(lrs)) * (pc / 100))
@@ -162,7 +168,7 @@ func percentiles(lrs LogRecs) LogPcntl {
 	for i = 1; i <= 99; i += 1 {
 		idx := pctl_idx(i)
 		out[i] = lrs[idx]
-		out[i].Idx = uint32(idx) // track index for building P1/P99 bins
+		out[i].Idx = uint32(idx) // track index for sorting as needed later
 	}
 
 	out[99.9] = lrs[pctl_idx(99.9)]
@@ -308,8 +314,6 @@ func (bucket LogRecs) updateBucket(bktidx int, hgidx int, bin LogBin, lrs LogRec
 		sort.Sort(bucket)
 		hs.Pcntl = percentiles(bucket)
 
-		fmt.Printf("hs.Pcntl: %v\n", hs.Pcntl)
-
 		// save to the bin summary
 		bin[hgidx] = &hs
 
@@ -323,8 +327,8 @@ func (bucket LogRecs) updateBucket(bktidx int, hgidx int, bin LogBin, lrs LogRec
 // JSON doesn't officially support anything but strings as keys
 // so the floats have to be converted with this handler.
 func (lp LogPcntl) MarshalJSON() ([]byte, error) {
-	jsonFmt := "\"%g\": {\"time\": %d, \"value\": %d}%s"
-	max := fmt.Sprintf(jsonFmt, math.MaxFloat64, math.MaxInt32, math.MaxInt32, ",")
+	jsonFmt := "\"%g\": {\"time\": %d, \"value\": %d, \"idx\": %d}%s"
+	max := fmt.Sprintf(jsonFmt, math.MaxFloat64, math.MaxInt32, math.MaxInt32, math.MaxInt32, ",")
 	buf := make([]byte, len(lp)*len(max)+4)
 
 	// copy the keys to a list for sorting so they're in order in the output
@@ -344,7 +348,7 @@ func (lp LogPcntl) MarshalJSON() ([]byte, error) {
 		if i == len(keys)-1 {
 			sep = ""
 		}
-		out := fmt.Sprintf(jsonFmt, key, lp[key].Time, lp[key].Val, sep)
+		out := fmt.Sprintf(jsonFmt, key, lp[key].Time, lp[key].Val, lp[key].Idx, sep)
 		outbytes := []byte(out)
 		bufidx += copy(buf[bufidx:bufidx+len(outbytes)], outbytes)
 	}

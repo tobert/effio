@@ -1,0 +1,20 @@
+[
+  {
+    "name": "docker_volume",
+    "notes": "A docker volume of unknown specifications.",
+    "ignore": false,
+    "device": "",
+    "mountpoint": "/vol",
+    "filesystem": "unknown",
+    "brand": "unknown",
+    "series": "Docker Volume",
+    "datasheet": "",
+    "capacity": 21474836480,
+    "rotational": false,
+    "transport": "bind_mount",
+    "hba": "virtio",
+    "media": "unknown",
+    "blocksize": 512,
+    "rpm": 0
+  }
+]

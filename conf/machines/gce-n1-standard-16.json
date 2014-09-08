@@ -1,0 +1,38 @@
+[
+  {
+    "name": "gce-pd-256G",
+    "notes": "GCE Persistent Disk 256GB",
+    "ignore": false,
+    "device": "/dev/disk/by-id/google-persistent-disk-1-part1",
+    "mountpoint": "/mnt/effio/persistentdisk",
+    "filesystem": "ext4",
+    "brand": "Google",
+    "series": "PersistentDisk",
+    "datasheet": "",
+    "capacity": 274877906944,
+    "rotational": true,
+    "transport": "virtio",
+    "hba": "virtio-scsi",
+    "media": "Iron",
+    "blocksize": 512,
+    "rpm": 7200
+  },
+  {
+    "name": "gce-pd-1T",
+    "notes": "GCE Persistent Disk 1TB",
+    "ignore": false,
+    "device": "/dev/disk/by-id/google-persistent-disk-12-part1",
+    "mountpoint": "/mnt/effio/persistentdisk",
+    "filesystem": "ext4",
+    "brand": "Generic",
+    "series": "PersistentDisk",
+    "datasheet": "",
+    "capacity": 1073741824000,
+    "rotational": true,
+    "transport": "virtio",
+    "hba": "virtio-scsi",
+    "media": "Iron",
+    "blocksize": 512,
+    "rpm": 7200
+  }
+]

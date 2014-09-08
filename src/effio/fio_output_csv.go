@@ -54,19 +54,23 @@ func LoadFioLog(filename string) LogRecs {
 
 		tm, err := strconv.Atoi(r[0])
 		if err != nil {
-			log.Fatalf("\nParsing field 0 failed in file '%s' at line %d: %s", filename, lno, err)
+			log.Printf("\nParsing field 0 failed in file '%s' at line %d: %s", filename, lno, err)
+			continue
 		}
 		perf, err := strconv.Atoi(r[1])
 		if err != nil {
-			log.Fatalf("\nParsing field 1 in file '%s' at line %d: %s", filename, lno, err)
+			log.Printf("\nParsing field 1 in file '%s' at line %d: %s", filename, lno, err)
+			continue
 		}
 		ddir, err := strconv.Atoi(r[2])
 		if err != nil {
-			log.Fatalf("\nParsing field 2 failed in file '%s' at line %d: %s", filename, lno, err)
+			log.Printf("\nParsing field 2 failed in file '%s' at line %d: %s", filename, lno, err)
+			continue
 		}
 		bsz, err := strconv.Atoi(r[3])
 		if err != nil {
-			log.Fatalf("\nParsing field 3 failed in file '%s' at line %d: %s", filename, lno, err)
+			log.Printf("\nParsing field 3 failed in file '%s' at line %d: %s", filename, lno, err)
+			continue
 		}
 
 		lr := LogRec{uint32(tm), uint32(perf), uint8(ddir), uint16(bsz), uint32(lno)}

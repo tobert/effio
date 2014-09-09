@@ -3,4 +3,5 @@
 *.swp
 
 ./effio
-suites
+./suites
+./public/data

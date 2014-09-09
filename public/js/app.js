@@ -41,28 +41,9 @@ APP.fields = {
   }
 };
 
-// called after all the data is downloaded and extract some lists for use
-// in building the UI ... maybe should be renamed
-APP.main = function () {
-  console.log("APP:", APP);
-
-  APP.devices = APP.uniq(APP.summaries, function (d) { return d.fio_command.device.name; });
-  APP.benchmarks = APP.uniq(APP.summaries, function (d) { return d.fio_command.fio_name; }, "benchmark");
-  APP.suites = APP.uniq(APP.summaries, function (d) { return d.fio_command.suite_name; });
-
-  var sample_types = {};
-  APP.summaries.forEach(function (smry) {
-    d3.keys(smry).forEach(function (key) {
-      if (key.length > 1 && key.match(/bin/)) {
-        sample_types[key] = true;
-      }
-    });
-  });
-  APP.sample_types = d3.keys(sample_types);
-};
 
 // builds the bootstrap layout then puts all the controls into the containers
-APP.render_chart = function (target) {
+APP.render_page_layout = function (target) {
   APP.setup_chart_controls(target);
   APP.build_nav();
 };
@@ -220,43 +201,6 @@ APP.iqr = function (k) {
     while (d[--j] > q3 + iqr);
     return [i, j];
   };
-};
-
-// called on page load to pull data from the server into memory for display/processing
-APP.run = function () {
-  APP.inventory = [];
-  APP.summaries = [];
-
-  d3.json("/inventory", function (error, inventory) {
-    if (error) { return alert(error); }
-
-    // ignore clat & slat - they're huge and useless
-    d3.keys(inventory).filter(function (key) {
-      if (key === "clat" || key === "slat") {
-        return false;
-      }
-      return true;
-      //if (key === "lat") {
-      //  return true;
-      //}
-      //return false;
-    }).forEach(function (key) {
-      APP.inventory = APP.inventory.concat(inventory[key]);
-    });
-
-    APP.inventory.forEach(function (json_file) {
-      d3.json(json_file, function (error, summary) {
-        if (error) { return alert(error); }
-
-        APP.summaries.push(summary);
-
-        // fire the main program once all data is downloaded
-        if (APP.summaries.length === APP.inventory.length) {
-          APP.main();
-        }
-      });
-    });
-  });
 };
 
 // set up 9 regions on the screen using bootstrap
@@ -517,7 +461,84 @@ APP.uniq = function (list, fun, category) {
   return out;
 };
 
-// always start loading data immediately on page load
-$(APP.run)
+// called on page load to pull data from the server into memory for display/processing
+// returns a promise that resolves when all data is loaded
+// Usage: APP.run.then(function () { alert("loaded!"); });
+APP.run = function () {
+  APP.inventory = [];
+  APP.summaries = [];
+
+  return new Promise(function (resolve, reject) {
+    d3.json("/inventory", function (error, inventory) {
+      // failed, log and reject the promise
+      if (error) {
+        console.log("d3.json error: ", error);
+        reject(error);
+      }
+
+      // ignore clat & slat - they're huge and useless
+      d3.keys(inventory).filter(function (key) {
+        if (key === "clat" || key === "slat") {
+          return false;
+        }
+        return true;
+      }).forEach(function (key) {
+        APP.inventory = APP.inventory.concat(inventory[key]);
+      });
+
+      // load all of the summaries over XHR
+      APP.inventory.forEach(function (json_file) {
+        d3.json(json_file, function (error, summary) {
+          // failed, log and reject the promise
+          if (error) {
+            console.log("d3.json error: ", error);
+            reject(error);
+          }
+
+          APP.summaries.push(summary);
+
+          if (APP.summaries.length === APP.inventory.length) {
+            APP.build_indices();
+
+            // when data loading & indexing is complete, resolve the promise
+            resolve();
+          }
+        });
+      });
+    });
+  });
+};
+
+// called after all the data is downloaded and extract some lists for use
+// in building the UI ... maybe should be renamed
+APP.build_indices = function () {
+  console.log("Indexing complete. APP:", APP);
+
+  APP.devices = APP.uniq(APP.summaries, function (d) { return d.fio_command.device.name; });
+  APP.benchmarks = APP.uniq(APP.summaries, function (d) { return d.fio_command.fio_name; }, "benchmark");
+  APP.suites = APP.uniq(APP.summaries, function (d) { return d.fio_command.suite_name; });
+
+  // HACK: fix summary.name, check for duplicate entrires
+  APP.by_name = {};
+  APP.summaries.forEach(function (d) {
+    d.name = d.fio_command.name; // the preprocessor isn't setting this correctly, fix later
+    if (APP.by_name.hasOwnProperty(d.name)) {
+      var old = APP.by_name[d.name];
+      console.log("WARNING DUPLICATE NAME(" + old.path + "): (name, have, found) ", d.name, d, old);
+    } else {
+      APP.by_name[d.name] = d;
+    }
+  });
+
+  var sample_types = {};
+  APP.summaries.forEach(function (smry) {
+    d3.keys(smry).forEach(function (key) {
+      if (key.length > 1 && key.match(/bin/)) {
+        sample_types[key] = true;
+      }
+    });
+  });
+  APP.sample_types = d3.keys(sample_types);
+};
 
 // vim: et ts=2 sw=2 ai smarttab

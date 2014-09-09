@@ -1,0 +1,82 @@
+html {
+  min-height: 100%;
+}
+
+body {
+  min-height: 740px;
+  overflow: hidden;
+  font-family: 'Roboto', sans-serif;
+}
+
+b, strong { font-weight: bold; }
+i, em { font-style: italic; }
+
+label {
+  font-weight: normal !important;
+}
+
+#top_row {
+  height: 70px;
+}
+
+#top_left {
+}
+#top_middle {
+}
+#top_right {
+}
+
+#mid_row {
+  height: 740px;
+  margin-bottom: 2em;
+}
+
+#mid_left {
+  height: 600px;
+}
+#mid_middle {
+  overflow: visible;
+  height: 600px;
+  background: rgb(215, 215, 215);
+  background: radial-gradient(rgb(240, 240, 240), rgb(220, 220, 220));
+  border-radius: 10px;
+  box-shadow: 0px 0px 8px 8px rgba(20,20,20,99);
+}
+#mid_right {
+  height: 600px;
+}
+
+#bot_row {
+  position: absolute;
+  bottom: 0;
+  width: 100%;
+  height: 100px;
+}
+
+#bot_left {
+}
+#bot_middle {
+}
+#bot_right {
+}
+
+.box-device-name {
+  font-size: 24px;
+  stroke: rgba(16, 64, 200, 0.25);
+  fill: rgba(255, 255, 255, 0.25);
+}
+
+.box-whisker-bg {
+  fill: rgba(255, 255, 255, 0);
+}
+
+.box {
+  font-weight: bold;
+}
+.box .center { stroke-dasharray: 3,3; }
+.box .outlier { fill: none; stroke: #ccc; }
+.box line, .box rect, .box circle {
+  fill: white;
+  stroke: black;
+  stroke-width: 1.5px;
+}

@@ -16,6 +16,7 @@
 
 var APP = {};
 
+// some functions used in selectors for extracting fields from the summaries
 APP.fields = {
   average:     function (smry) { return smry.average; },
   median:      function (smry) { return smry.median;  },
@@ -40,6 +41,8 @@ APP.fields = {
   }
 };
 
+// called after all the data is downloaded and extract some lists for use
+// in building the UI ... maybe should be renamed
 APP.main = function () {
   console.log("APP:", APP);
 
@@ -58,11 +61,13 @@ APP.main = function () {
   APP.sample_types = d3.keys(sample_types);
 };
 
+// builds the bootstrap layout then puts all the controls into the containers
 APP.render_chart = function (target) {
   APP.setup_chart_controls(target);
   APP.build_nav();
 };
 
+// do a first level of filtering then call into C3 or d3.box
 APP.chart = function (target, benchmark, sample_type, devices, chart_type, rot, fun) {
   console.log("APP.chart(", benchmark, sample_type, devices, chart_type, fun, ")");
 
@@ -101,6 +106,7 @@ APP.chart = function (target, benchmark, sample_type, devices, chart_type, rot, 
   }
 };
 
+// draw charts with c3.js
 APP.c3chart = function (target, data, sample_type, chart_type, fun) {
   console.log("APP.c3chart", data, sample_type, chart_type, fun);
   // format the data for C3
@@ -194,6 +200,7 @@ APP.d3box = function (target, summaries, sample_type, fun) {
     .call(chart);
 };
 
+// needed by d3.box to compute inter-quartile range
 APP.iqr = function (k) {
   return function(d, i) {
     var q1 = d.quartiles[0],
@@ -207,6 +214,7 @@ APP.iqr = function (k) {
   };
 };
 
+// called on page load to pull data from the server into memory for display/processing
 APP.run = function () {
   APP.inventory = [];
   APP.summaries = [];
@@ -240,6 +248,8 @@ APP.run = function () {
   });
 };
 
+// set up 9 regions on the screen using bootstrap
+// see also: ../css/app.css
 APP.setup_chart_controls = function (target) {
   var body = d3.select(target);
   body.selectAll("div").remove();
@@ -482,6 +492,7 @@ APP.uniq = function (list, fun, category) {
   return out;
 };
 
+// always start loading data immediately on page load
 $(APP.run)
 
 // vim: et ts=2 sw=2 ai smarttab

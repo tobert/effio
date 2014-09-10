@@ -195,7 +195,7 @@ md0               0.00     0.00  755.80    0.00 386664.80    0.00  1023.19     0
   <script src="js/app.js"></script>
   <script src="js/impress.js"></script>
   <script>
-    $(document).ready(function() {
+    var main = function () {
       var api = impress();
       api.init();
 
@@ -293,6 +293,10 @@ md0               0.00     0.00  755.80    0.00 386664.80    0.00  1023.19     0
         } else if (currentSlide === 'g6') {
         }
       });
+    };
+
+    $(document).ready(function() {
+      APP.run().then(function () { main(); });
     });
   </script>
 </body>

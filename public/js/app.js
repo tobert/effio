@@ -41,7 +41,6 @@ APP.fields = {
   }
 };
 
-
 // builds the bootstrap layout then puts all the controls into the containers
 APP.render_page_layout = function (target) {
   APP.setup_chart_controls(target);
@@ -52,7 +51,8 @@ APP.render_page_layout = function (target) {
 // { benchmark: "foobar", sample: "all", type: "c3.line", log_type: "lat", fun: APP.fields.average }
 APP.chart = function (target, devices, chart1, chart2) {
   //d3.select("#top_mid").text(benchmark + " / " + sample_type);
-  console.log("CHART1:", chart1, "CHART2:", chart2);
+  //
+  console.log("APP.chart(", target, devices, chart1, {}, ");");
 
   var chart1_data = APP.filter_summaries(devices, chart1.benchmark, chart1.log_type, chart1.rotational);
   console.log("Chart 1 selected summaries", chart1_data);
@@ -128,7 +128,7 @@ APP.c3chart = function (target, data, sample_type, chart_type, fun) {
 
   return c3.generate({
     bindto: target,
-    data: { columns: cols, type: chart_type },
+    data: { columns: cols, type: chart_type, colors: APP.device_colors },
     axis: {
       y: { label: { text: "Latency (usec)", position: "outer-middle" } },
       x: { label: { text: "Time Offset (seconds)" } }
@@ -455,7 +455,8 @@ APP.uniq = function (list, fun, category) {
       out.push(val);
     }
   });
-  return out;
+
+  return out.sort();
 };
 
 // called on page load to pull data from the server into memory for display/processing
@@ -514,6 +515,13 @@ APP.build_indices = function () {
   APP.devices = APP.uniq(APP.summaries, function (d) { return d.fio_command.device.name; });
   APP.benchmarks = APP.uniq(APP.summaries, function (d) { return d.fio_command.fio_name; }, "benchmark");
   APP.suites = APP.uniq(APP.summaries, function (d) { return d.fio_command.suite_name; });
+
+  // assign devices colors at startup so they're consistent across changes
+  var colors = d3.scale.category20();
+  APP.device_colors = {};
+  APP.devices.forEach(function (d,i) {
+    APP.device_colors[d] = colors(i);
+  });
 
   // HACK: fix summary.name, check for duplicate entrires
   APP.by_name = {};

@@ -62,6 +62,7 @@ APP.chart = function (target, devices, chart1, chart2) {
     var chart = APP.c3chart(target, chart1_data, chart1.sample, ctype[1], chart1.fun);
     if (chart2.hasOwnProperty("log") && chart2["log"] != "off") {
       var chart2_data = APP.filter_summaries(devices, chart2.benchmark, chart2.rotational);
+      chart.load({ columns: APP.summaries_to_c3(chart2_data, chart2.sample, chart2.fun), type: "line", style: "dashed" });
       console.log("Chart 2 selected summaries", chart2_data);
     }
   // doesn't make sense to do two dimensions on a box chart (for now)
@@ -95,11 +96,10 @@ APP.filter_summaries = function (devices, benchmark, rotational) {
     });
 };
 
-// draw charts with c3.js
-APP.c3chart = function (target, data, sample_type, chart_type, fun) {
-  console.log("APP.c3chart", data, sample_type, chart_type, fun);
-  // format the data for C3
-  var cols = data.map(function (summary) {
+// format the data for C3
+APP.summaries_to_c3 = function (data, sample_type, fun) {
+  console.log("APP.summaries_to_c3 = function (data, sample_type, fun) { -->", data, sample_type, fun);
+  return data.map(function (summary) {
     var col = [];
     if (sample_type === "percentiles_bin") {
       var pc = summary["percentiles"];
@@ -116,6 +116,13 @@ APP.c3chart = function (target, data, sample_type, chart_type, fun) {
 
     return col;
   });
+};
+
+// draw charts with c3.js
+APP.c3chart = function (target, data, sample_type, chart_type, fun) {
+  console.log("APP.c3chart", data, sample_type, chart_type, fun);
+
+  var cols = APP.summaries_to_c3(data, sample_type, fun);
 
   return c3.generate({
     bindto: target,
@@ -248,10 +255,10 @@ APP.change = function (side) {
     d3.selectAll(id("benchmark-radio input"))
       .each(function (d) { if (this.checked == true) { chart.benchmark = this.value; } });
 
-    d3.selectAll(id("ddir-radio input"))
+    d3.selectAll(".ddir-radio input")
       .each(function (d) { if (this.checked == true) { chart.ddir = this.value; } });
 
-    d3.selectAll(id("pcntl-radio input"))
+    d3.selectAll(".pcntl-radio input")
       .each(function (d) { if (this.checked == true) { chart.pcntl = this.value; } });
 
     d3.selectAll(id("chart-type-radio input"))
@@ -263,7 +270,7 @@ APP.change = function (side) {
     d3.selectAll(id("rot-radio input"))
       .each(function (d) { if (this.checked == true) { chart.rotational = this.value; } });
 
-    d3.selectAll(id("logtype-right-radio input"))
+    d3.selectAll(id("logtype-radio input"))
       .each(function (d) { if (this.checked == true) { chart.log = this.value; } });
 
     if (chart.pcntl === "all") { chart.pcntl = "" } else { chart.pcntl = chart.pcntl + "_"; }
@@ -321,11 +328,11 @@ APP.build_nav = function() {
 
   // ddir gets appended after benchmark selection
   // to allow select of left/read & right/write etc. once y2data is implemented
-  var ddirs = mid_left.selectAll(".chart1-ddir-radio")
+  var ddirs = mid_left.selectAll(".ddir-radio")
     .data(["all", "read", "write", "trim", "percentiles"])
     .enter()
     .append("div")
-      .classed({"radio-inline": true, "chart1-ddir-radio": true});
+      .classed({"radio-inline": true, "ddir-radio": true});
 
   ddirs.append("input").attr("type", "radio")
     .property("checked", function (d,i) { return i === 0; })
@@ -353,29 +360,44 @@ APP.build_nav = function() {
   benchmarks2.append("label")
     .text(function (d) { return d; });
 
-  var r_logtypes = mid_right.selectAll(".chart2-logtype-right-radio")
+  var r_logtypes = mid_right.selectAll(".chart2-logtype-radio")
     .data(["off", "lat", "bw", "iops"])
     .enter()
     .append("div")
-      .classed({"radio-inline": true, "chart2-logtype-right-radio": true});
+      .classed({"radio-inline": true, "chart2-logtype-radio": true});
 
   r_logtypes.append("input").attr("type", "radio")
     .property("checked", function (d,i) { return i === 0; })
-    .attr("name", "logtype-right-radio")
+    .attr("name", "chart2-logtype-radio")
     .attr("value", function (d) { return d; })
     .on("change", function () { APP.change(); });
 
   r_logtypes.append("label")
     .text(function (d) { return d; });
 
+  var r_fields = mid_right.selectAll(".chart2-field-radio")
+    .data(d3.keys(APP.fields).sort())
+    .enter()
+    .append("div")
+      .classed({"radio-inline": true, "chart2-field-radio": true});
+
+  r_fields.append("input").attr("type", "radio")
+    .property("checked", function (d) { return d === "average"; })
+    .attr("name", "chart2-field-radio")
+    .attr("value", function (d) { return d; })
+    .on("change", function () { APP.change(); });
+
+  r_fields.append("label")
+    .text(function (d) { return d; });
+
   var bot_left = d3.select("#bot_left");
 
   // same as with ddir but on the bottom left
-  var pcntls = bot_left.selectAll(".chart1-pcntl-radio")
+  var pcntls = bot_left.selectAll(".pcntl-radio")
     .data(["all", "p1", "p99"])
     .enter()
     .append("div")
-      .classed({"radio-inline": true, "chart1-pcntl-radio": true});
+      .classed({"radio-inline": true, "pcntl-radio": true});
 
   pcntls.append("input").attr("type", "radio")
     .property("checked", function (d,i) { return i === 0; })
@@ -430,7 +452,7 @@ APP.build_nav = function() {
 
   fields.append("input").attr("type", "radio")
     .property("checked", function (d) { return d === "average"; })
-    .attr("name", "field-radio")
+    .attr("name", "chart1-field-radio")
     .attr("value", function (d) { return d; })
     .on("change", function () { APP.change(); });
 
@@ -524,7 +546,7 @@ APP.build_indices = function () {
     d.name = d.fio_command.name; // the preprocessor isn't setting this correctly, fix later
     if (APP.by_name.hasOwnProperty(d.name)) {
       var old = APP.by_name[d.name];
-      console.log("WARNING DUPLICATE NAME(" + old.path + "): (name, have, found) ", d.name, d, old);
+      //console.log("WARNING DUPLICATE NAME(" + old.path + "): (name, have, found) ", d.name, d, old);
     } else {
       APP.by_name[d.name] = d;
     }

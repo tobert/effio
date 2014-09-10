@@ -25,6 +25,7 @@ func (p LogRecs) Swap(i, j int)      { p[i].Time, p[j].Time = p[j].Time, p[i].Ti
 
 // sorts by value for indexing percentiles
 type LogRecsByVal LogRecs
+
 func (p LogRecsByVal) Len() int           { return len(p) }
 func (p LogRecsByVal) Less(i, j int) bool { return p[i].Val < p[j].Val }
 func (p LogRecsByVal) Swap(i, j int)      { p[i].Val, p[j].Val = p[j].Val, p[i].Val }
@@ -276,16 +277,28 @@ func (bucket LogRecs) updateBucket(bktidx int, hgidx int, bin LogBin, lrs LogRec
 		return bktidx, hgidx
 		// bucket is full or end of data, sum it & advance to the next bin entry
 	} else if bktidx == len(bucket)-1 || lridx == max_lridx {
-		hs := LogSmry{}
+		hs := LogSmry{
+			Max:   0,
+			Min:   math.MaxUint32,
+			MinTs: math.MaxUint32,
+			MaxTs: 0,
+		}
 
 		// finding max/min ts by indices would usually work, but the backing LogRecs
 		// is sorted in place at times, so be safe and do it the hard way
-		hs.MinTs = math.MaxUint32
 
 		// count and sum up all entries, find min/max timestamp
 		for _, lr := range bucket {
 			hs.Sum += uint64(lr.Val)
 			hs.Count++
+
+			if lr.Val > hs.Max {
+				hs.Max = lr.Val
+			}
+
+			if lr.Val < hs.Min {
+				hs.Min = lr.Val
+			}
 
 			if lr.Time > hs.MaxTs {
 				hs.MaxTs = lr.Time
@@ -299,6 +312,7 @@ func (bucket LogRecs) updateBucket(bktidx int, hgidx int, bin LogBin, lrs LogRec
 		// get the median/p50 and average values
 		hs.Median = uint64(bucket[(len(bucket)-1)/2].Val)
 		hs.Average = float64(hs.Sum) / float64(hs.Count)
+		hs.Elapsed = hs.MaxTs - hs.MinTs
 
 		// add up the squares of each value's delta from average
 		var dsum float64

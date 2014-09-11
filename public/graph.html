@@ -23,7 +23,14 @@
   <script src="js/app.js"></script>
   <script>
     $(document).ready(function() {
-     setTimeout(function () {APP.render_chart("body");}, 2000);
+      var p = APP.run();
+
+      p.then(function () {
+        console.log("data loaded, rendering body ...");
+        APP.render_page_layout("body");
+        APP.main();
+        console.log("all done, ready to go");
+      });
     });
   </script>
 </body>

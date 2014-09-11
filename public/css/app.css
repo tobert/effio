@@ -20,10 +20,13 @@ label {
 }
 
 #top_left {
+  font-size: 12px;
 }
 #top_middle {
+  font-size: 12px;
 }
 #top_right {
+  font-size: 12px;
 }
 
 #mid_row {
@@ -33,6 +36,7 @@ label {
 
 #mid_left {
   height: 600px;
+  font-size: 12px;
 }
 #mid_middle {
   overflow: visible;
@@ -41,9 +45,11 @@ label {
   background: radial-gradient(rgb(240, 240, 240), rgb(220, 220, 220));
   border-radius: 10px;
   box-shadow: 0px 0px 8px 8px rgba(20,20,20,99);
+  font-size: 12px;
 }
 #mid_right {
   height: 600px;
+  font-size: 12px;
 }
 
 #bot_row {
@@ -54,10 +60,13 @@ label {
 }
 
 #bot_left {
+  font-size: 12px;
 }
 #bot_middle {
+  font-size: 12px;
 }
 #bot_right {
+  font-size: 12px;
 }
 
 .box-device-name {

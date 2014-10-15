@@ -20,7 +20,7 @@ disable_lat=0
 disable_clat=0
 disable_slat=0
 numjobs=4
-size=25g
+size=20g
 filename_format=fiodata.$jobnum
 
 [{{ .Name }}]

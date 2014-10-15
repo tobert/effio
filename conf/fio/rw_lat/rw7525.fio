@@ -20,7 +20,7 @@ unlink=0
 disable_lat=0
 disable_clat=0
 disable_slat=0
-size=100g
+size=80g
 nrfiles=4
 filename_format=fiodata.$filenum
 

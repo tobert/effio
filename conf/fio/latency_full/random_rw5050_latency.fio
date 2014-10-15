@@ -21,7 +21,7 @@ disable_clat=0
 disable_slat=0
 numjobs=1
 nrfiles=4
-size=100g
+size=80g
 filename_format=fiodata.$filenum
 
 [{{ .Name }}]

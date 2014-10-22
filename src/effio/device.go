@@ -54,7 +54,14 @@ func (d *Device) IsMounted() (bool, error) {
 		return true, nil
 	}
 }
+func (d *Device) Mount() error {
+return nil
+}
+func (d *Device) Umount() error {
+return nil
+}
 
+/*
 func (d *Device) Mount() error {
 	if d.Device == "" {
 		return errors.New("'device' must be defined in device json for mounting support")
@@ -80,6 +87,7 @@ func (d *Device) Mount() error {
 func (d *Device) Umount() error {
 	return syscall.Unmount(d.Mountpoint, 0)
 }
+*/
 
 func (d *Device) ToJson() string {
 	js, err := json.MarshalIndent(d, "  ", "  ")

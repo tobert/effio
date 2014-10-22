@@ -11,7 +11,9 @@ d3.box = function() {
       quartiles = boxQuartiles,
       tickFormat = null;
 
-  // For each small multiple…
+  colorPick = d3.scale.category10()
+
+		// For each small multiple…
   function box(g) {
     g.each(function(d, i) {
       d = d.map(value).sort(d3.ascending);
@@ -83,6 +85,9 @@ d3.box = function() {
           .attr("y", function(d) { return x0(d[2]); })
           .attr("width", width)
           .attr("height", function(d) { return x0(d[0]) - x0(d[2]); })
+				  .on('mouseout', function(){ $($(".box-device-name")[i]).css("fill","gray")} )
+					.on('mouseover', function(){ $($(".box-device-name")[i]).css("fill","black")} )
+					.style("fill", function() { return colorPick(i); })
         .transition()
           .duration(duration)
           .attr("y", function(d) { return x1(d[2]); })

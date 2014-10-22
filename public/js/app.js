@@ -16,6 +16,9 @@
 
 var APP = {};
 
+//new global var for svg and chart for transitions
+var svg = {};
+var chart = {};
 // some functions used in selectors for extracting fields from the summaries
 APP.fields = {
   average:     function (smry) { return smry.average; },
@@ -41,57 +44,44 @@ APP.fields = {
   }
 };
 
-// called after all the data is downloaded and extract some lists for use
-// in building the UI ... maybe should be renamed
-APP.main = function () {
-  console.log("APP:", APP);
-
-  APP.devices = APP.uniq(APP.summaries, function (d) { return d.fio_command.device.name; });
-  APP.benchmarks = APP.uniq(APP.summaries, function (d) { return d.fio_command.fio_name; }, "benchmark");
-  APP.suites = APP.uniq(APP.summaries, function (d) { return d.fio_command.suite_name; });
-
-  var sample_types = {};
-  APP.summaries.forEach(function (smry) {
-    d3.keys(smry).forEach(function (key) {
-      if (key.length > 1 && key.match(/bin/)) {
-        sample_types[key] = true;
-      }
-    });
-  });
-  APP.sample_types = d3.keys(sample_types);
-};
-
 // builds the bootstrap layout then puts all the controls into the containers
-APP.render_chart = function (target) {
+APP.render_page_layout = function (target) {
   APP.setup_chart_controls(target);
   APP.build_nav();
 };
 
 // do a first level of filtering then call into C3 or d3.box
-// { benchmark: "foobar", sample: "all", type: "c3.line", log: "lat", fun: APP.fields.average }
+// { benchmark: "foobar", sample: "all", type: "c3.line", log_type: "lat", fun: APP.fields.average }
 APP.chart = function (target, devices, chart1, chart2) {
   //d3.select("#top_mid").text(benchmark + " / " + sample_type);
-  console.log("CHART1:", chart1, "CHART2:", chart2);
+  //
+  console.log("APP.chart(", target, devices, chart1, {}, ");");
 
-  var chart1_data = APP.filter_summaries(devices, chart1.benchmark, chart1.rotational);
+  var chart1_data = APP.filter_summaries(devices, chart1.benchmark, chart1.log_type, chart1.rotational);
   console.log("Chart 1 selected summaries", chart1_data);
 
   var ctype = chart1.type.split("."); // c3.line, c3.bar, d3.box
   if (ctype[0] === "c3") {
     var chart = APP.c3chart(target, chart1_data, chart1.sample, ctype[1], chart1.fun);
-    if (chart2.hasOwnProperty("log") && chart2["log"] != "off") {
-      var chart2_data = APP.filter_summaries(devices, chart2.benchmark, chart2.rotational);
-      console.log("Chart 2 selected summaries", chart2_data);
+
+    // disabled for now (2014-09-10)
+    if (chart2.hasOwnProperty("log_type") && chart2["log_type"] != "off") {
+      var chart2_data = APP.filter_summaries(devices, chart2.benchmark, chart2.log_type, chart2.rotational);
+      chart.load({ columns: APP.summaries_to_c3(chart2_data, chart2.sample, chart2.fun), type: "line", style: "dashed" });
     }
   // doesn't make sense to do two dimensions on a box chart (for now)
   } else if (ctype[0] === "d3" && ctype[1] === "box") {
-    APP.d3box(target, chart1_data, chart1.sample, chart1.fun);
+    
+    //hardcoding this to turn off animation until I figure out how to deal with adding and removing devices
+    var flag = false;
+
+    flag && $(".box").length>0 ? APP.d3boxRedraw(target, chart1_data, chart1.sample, chart1.fun): APP.d3box(target, chart1_data, chart1.sample, chart1.fun);
   } else {
     alert("Invalid chart type: '" + chart1.type + "'");
   }
 };
 
-APP.filter_summaries = function (devices, benchmark, rotational) {
+APP.filter_summaries = function (devices, benchmark, log_type, rotational) {
   // finds the summaries that contain the benchmark requested
   return APP.summaries
     // sort by device name to keep layout consistent
@@ -102,6 +92,8 @@ APP.filter_summaries = function (devices, benchmark, rotational) {
     })
     // only display selected devices
     .filter(function (d) { return devices.hasOwnProperty(d.fio_command.device.name); })
+    // filter by log type (bw, iops, lat)
+    .filter(function (d) { return d.log_type === log_type; })
     // only display the selected benchmark name
     .filter(function (d) { return d.fio_command.fio_name === benchmark; })
     // quick split on ssd/hdd
@@ -114,11 +106,9 @@ APP.filter_summaries = function (devices, benchmark, rotational) {
     });
 };
 
-// draw charts with c3.js
-APP.c3chart = function (target, data, sample_type, chart_type, fun) {
-  console.log("APP.c3chart", data, sample_type, chart_type, fun);
-  // format the data for C3
-  var cols = data.map(function (summary) {
+// format the data for C3
+APP.summaries_to_c3 = function (data, sample_type, fun) {
+  return data.map(function (summary) {
     var col = [];
     if (sample_type === "percentiles_bin") {
       var pc = summary["percentiles"];
@@ -135,10 +125,17 @@ APP.c3chart = function (target, data, sample_type, chart_type, fun) {
 
     return col;
   });
+};
+
+// draw charts with c3.js
+APP.c3chart = function (target, data, sample_type, chart_type, fun) {
+  console.log("APP.c3chart", data, sample_type, chart_type, fun);
+
+  var cols = APP.summaries_to_c3(data, sample_type, fun);
 
   return c3.generate({
     bindto: target,
-    data: { columns: cols, type: chart_type },
+    data: { columns: cols, type: chart_type, colors: APP.device_colors },
     axis: {
       y: { label: { text: "Latency (usec)", position: "outer-middle" } },
       x: { label: { text: "Time Offset (seconds)" } }
@@ -146,14 +143,51 @@ APP.c3chart = function (target, data, sample_type, chart_type, fun) {
   });
 };
 
+
+APP.d3boxRedraw = function (target,summaries, sample_type, fun){
+  var max = -Infinity;
+  var min = Infinity;
+  
+  var newData = summaries.map(function (smry, i) {
+          return d3.keys(smry.percentiles)                                                                                 
+            .filter(function (key) { return +key < 99.1; })
+            .sort(function (a,b) { return a - b; })
+            .map(function (key,i) {
+                var val = smry.percentiles[key].value;
+        
+                // side-effects to save a pass over the data
+                if (val > max) { max = val; }
+              if (val < min) { min = val; }
+      
+                return val;
+            });
+      });
+
+   var updateData = function(d, i){
+      return newData[i];
+   }
+
+   svg.datum(updateData).call(chart.duration(1000));
+
+}
 // use the percentiles to get d3 box.js to work
 // only supports 4-5 elements!
 APP.d3box = function (target, summaries, sample_type, fun) {
   console.log("APP.d3box", summaries, sample_type);
   d3.select(target).selectAll("svg").remove();
 
-  var margin = {top: 10, right: 40, bottom: 20, left: 40};
-  var width = 100 - margin.left - margin.right;
+  var lrMargin = ($("#mid_middle").width() /summaries.length) * .4
+  var fontSize = 10;
+  if (lrMargin < 30) {
+    fontSize = 5;
+  }
+
+  var margin = {top: 10, right: lrMargin, bottom: 20, left: lrMargin};
+  var width = ($("#mid_middle").width() - ((margin.left + margin.right) * summaries.length))/(summaries.length+1);  
+
+  //sanity check
+  if (width < 0) { console.log("check your margins, we have a negative width!");}
+
   var height = 600 - margin.top - margin.bottom;
   var max = -Infinity;
   var min = Infinity;
@@ -177,13 +211,13 @@ APP.d3box = function (target, summaries, sample_type, fun) {
     return smry.fio_command.device.name;
   });
 
-  var chart = d3.box()
+  chart = d3.box()
     .whiskers(APP.iqr(1.5))
     .width(width)
     .height(height)
     .domain([min, max]);
 
-  var svg = d3.select("#mid_middle").selectAll("svg")
+  svg = d3.select("#mid_middle").selectAll("svg")
     .data(data)
     .enter().append("svg")
       .attr("width", width + margin.left + margin.right)
@@ -204,8 +238,11 @@ APP.d3box = function (target, summaries, sample_type, fun) {
 
   var box = bg.append("g")
     .attr("class", "box")
-    .attr("transform", "translate(" + margin.left + "," + margin.top + ")")
     .call(chart);
+
+
+  //There's a better way to do this probably inside box.d3.js
+  $(".c3 svg").css("font-size",""+fontSize+"px");
 };
 
 // needed by d3.box to compute inter-quartile range
@@ -220,43 +257,6 @@ APP.iqr = function (k) {
     while (d[--j] > q3 + iqr);
     return [i, j];
   };
-};
-
-// called on page load to pull data from the server into memory for display/processing
-APP.run = function () {
-  APP.inventory = [];
-  APP.summaries = [];
-
-  d3.json("/inventory", function (error, inventory) {
-    if (error) { return alert(error); }
-
-    // ignore clat & slat - they're huge and useless
-    d3.keys(inventory).filter(function (key) {
-      if (key === "clat" || key === "slat") {
-        return false;
-      }
-      return true;
-      //if (key === "lat") {
-      //  return true;
-      //}
-      //return false;
-    }).forEach(function (key) {
-      APP.inventory = APP.inventory.concat(inventory[key]);
-    });
-
-    APP.inventory.forEach(function (json_file) {
-      d3.json(json_file, function (error, summary) {
-        if (error) { return alert(error); }
-
-        APP.summaries.push(summary);
-
-        // fire the main program once all data is downloaded
-        if (APP.summaries.length === APP.inventory.length) {
-          APP.main();
-        }
-      });
-    });
-  });
 };
 
 // set up 9 regions on the screen using bootstrap
@@ -304,10 +304,10 @@ APP.change = function (side) {
     d3.selectAll(id("benchmark-radio input"))
       .each(function (d) { if (this.checked == true) { chart.benchmark = this.value; } });
 
-    d3.selectAll(id("ddir-radio input"))
+    d3.selectAll(".ddir-radio input")
       .each(function (d) { if (this.checked == true) { chart.ddir = this.value; } });
 
-    d3.selectAll(id("pcntl-radio input"))
+    d3.selectAll(".pcntl-radio input")
       .each(function (d) { if (this.checked == true) { chart.pcntl = this.value; } });
 
     d3.selectAll(id("chart-type-radio input"))
@@ -319,8 +319,8 @@ APP.change = function (side) {
     d3.selectAll(id("rot-radio input"))
       .each(function (d) { if (this.checked == true) { chart.rotational = this.value; } });
 
-    d3.selectAll(id("logtype-right-radio input"))
-      .each(function (d) { if (this.checked == true) { chart.log = this.value; } });
+    d3.selectAll(id("logtype-radio input"))
+      .each(function (d) { if (this.checked == true) { chart.log_type = this.value; } });
 
     if (chart.pcntl === "all") { chart.pcntl = "" } else { chart.pcntl = chart.pcntl + "_"; }
     if (chart.ddir === "all")  { chart.ddir = ""  } else { chart.ddir  = chart.ddir  + "_"; }
@@ -336,25 +336,8 @@ APP.change = function (side) {
 
 // render the nav, this should only happen once
 APP.build_nav = function() {
-  // TODO: add y2data rendering
-
   // top left is empty for now
-
   // top middle is graph title, populted in APP.chart()
-
-  var rot = d3.select("#top_right").selectAll(".chart1-rot-radio")
-    .data(["All", "HDD", "SSD"])
-    .enter()
-    .append("div")
-      .classed({"radio-inline": true, "chart1-rot-radio": true});
-
-  rot.append("input").attr("type", "radio")
-    .property("checked", function (d,i) { return i === 0; })
-    .attr("name", "rot-radio")
-    .attr("value", function (d) { return d; })
-    .on("change", function () { APP.change(); });
-
-  rot.append("label").text(function (d) { return d });
 
   // benchmarks on the left / middle immediately left of the graph
   var mid_left = d3.select("#mid_left");
@@ -373,65 +356,48 @@ APP.build_nav = function() {
   benchmarks.append("label")
     .text(function (d) { return d; });
 
-  mid_left.append("hr");
+  // ===========================================================================
 
-  // ddir gets appended after benchmark selection
-  // to allow select of left/read & right/write etc. once y2data is implemented
-  var ddirs = mid_left.selectAll(".chart1-ddir-radio")
-    .data(["all", "read", "write", "trim", "percentiles"])
-    .enter()
-    .append("div")
-      .classed({"radio-inline": true, "chart1-ddir-radio": true});
-
-  ddirs.append("input").attr("type", "radio")
-    .property("checked", function (d,i) { return i === 0; })
-    .attr("name", "ddir-radio")
-    .attr("value", function (d) { return d; })
-    .on("change", function () { APP.change(); });
-
-  ddirs.append("label")
-    .text(function (d) { return d; });
-
-  // a second set of benchmark selectors, but these display iops & bw
   var mid_right = d3.select("#mid_right");
-  var benchmarks2 = mid_right.selectAll(".chart2-benchmark-radio")
-    .data(APP.benchmarks.sort())
+
+  var rot = mid_right.selectAll(".chart1-rot-radio")
+    .data(["All", "HDD", "SSD"])
     .enter()
     .append("div")
-      .classed({"radio": true, "chart2-benchmark-radio": true});
+      .classed({"radio-inline": true, "chart1-rot-radio": true});
 
-  benchmarks2.append("input").attr("type", "radio")
+  rot.append("input").attr("type", "radio")
     .property("checked", function (d,i) { return i === 0; })
-    .attr("name", "benchmark2-radio")
+    .attr("name", "rot-radio")
     .attr("value", function (d) { return d; })
     .on("change", function () { APP.change(); });
 
-  benchmarks2.append("label")
-    .text(function (d) { return d; });
+  rot.append("label").text(function (d) { return d });
 
-  var r_logtypes = mid_right.selectAll(".chart2-logtype-right-radio")
-    .data(["off", "lat", "bw", "iops"])
+  mid_right.append("hr"); // ==================================================
+
+  var logtypes = mid_right.selectAll(".chart1-logtype-radio")
+    .data(["lat", "bw", "iops"])
     .enter()
     .append("div")
-      .classed({"radio-inline": true, "chart2-logtype-right-radio": true});
+      .classed({"radio-inline": true, "chart1-logtype-radio": true});
 
-  r_logtypes.append("input").attr("type", "radio")
+  logtypes.append("input").attr("type", "radio")
     .property("checked", function (d,i) { return i === 0; })
-    .attr("name", "logtype-right-radio")
+    .attr("name", "chart1-logtype-radio")
     .attr("value", function (d) { return d; })
     .on("change", function () { APP.change(); });
 
-  r_logtypes.append("label")
+  logtypes.append("label")
     .text(function (d) { return d; });
 
-  var bot_left = d3.select("#bot_left");
+  mid_right.append("hr"); // ==================================================
 
-  // same as with ddir but on the bottom left
-  var pcntls = bot_left.selectAll(".chart1-pcntl-radio")
+  var pcntls = mid_right.selectAll(".pcntl-radio")
     .data(["all", "p1", "p99"])
     .enter()
     .append("div")
-      .classed({"radio-inline": true, "chart1-pcntl-radio": true});
+      .classed({"radio-inline": true, "pcntl-radio": true});
 
   pcntls.append("input").attr("type", "radio")
     .property("checked", function (d,i) { return i === 0; })
@@ -442,10 +408,10 @@ APP.build_nav = function() {
   pcntls.append("label")
     .text(function (d) { return d; });
 
-  bot_left.append("br");
+  mid_right.append("hr"); // ==================================================
 
   // chart type on the bottom left under pcntl
-  var types = bot_left.selectAll(".chart1-chart-type-radio")
+  var types = mid_right.selectAll(".chart1-chart-type-radio")
     .data(["c3.line", "c3.bar", "c3.scatter", "d3.box"])
     .enter()
     .append("div")
@@ -459,6 +425,44 @@ APP.build_nav = function() {
 
   types.append("label")
     .text(function (d) { return d; });
+
+  mid_right.append("hr"); // ==================================================
+
+  // ddir gets appended after benchmark selection
+  // no trim data for now, so leave it off
+  var ddirs = mid_right.selectAll(".ddir-radio")
+    .data(["all", "read", "write", "pcntl"])
+    .enter()
+    .append("div")
+      .classed({"radio-inline": true, "ddir-radio": true});
+
+  ddirs.append("input").attr("type", "radio")
+    .property("checked", function (d,i) { return i === 0; })
+    .attr("name", "ddir-radio")
+    .attr("value", function (d) { return d; })
+    .on("change", function () { APP.change(); });
+
+  ddirs.append("label")
+    .text(function (d) { return d; });
+
+  mid_right.append("hr"); // ==================================================
+
+  var fields = mid_right.selectAll(".chart1-field-radio")
+    .data(d3.keys(APP.fields).sort())
+    .enter()
+    .append("div")
+      .classed({"radio-inline": true, "chart1-field-radio": true});
+
+  fields.append("input").attr("type", "radio")
+    .property("checked", function (d) { return d === "average"; })
+    .attr("name", "chart1-field-radio")
+    .attr("value", function (d) { return d; })
+    .on("change", function () { APP.change(); });
+
+  fields.append("label")
+    .text(function (d) { return d; });
+
+  // ==========================================================================
 
   // devices along the bottom of the graph
   var devs = d3.select("#bot_middle").selectAll(".device-checkbox")
@@ -476,22 +480,6 @@ APP.build_nav = function() {
   devs.append("label")
     .attr("for", function (d) { return d; })
     .html(function (d) { return d; });
-
-  var bot_right = d3.select("#bot_right");
-  var fields = bot_right.selectAll(".chart1-field-radio")
-    .data(d3.keys(APP.fields).sort())
-    .enter()
-    .append("div")
-      .classed({"radio-inline": true, "chart1-field-radio": true});
-
-  fields.append("input").attr("type", "radio")
-    .property("checked", function (d) { return d === "average"; })
-    .attr("name", "field-radio")
-    .attr("value", function (d) { return d; })
-    .on("change", function () { APP.change(); });
-
-  fields.append("label")
-    .text(function (d) { return d; });
 
   APP.change();
 };
@@ -514,10 +502,95 @@ APP.uniq = function (list, fun, category) {
       out.push(val);
     }
   });
-  return out;
+
+  return out.sort();
 };
 
-// always start loading data immediately on page load
-$(APP.run)
+// called on page load to pull data from the server into memory for display/processing
+// returns a promise that resolves when all data is loaded
+// Usage: APP.run.then(function () { alert("loaded!"); });
+APP.run = function () {
+  APP.inventory = [];
+  APP.summaries = [];
+
+  return new Promise(function (resolve, reject) {
+    d3.json("/inventory", function (error, inventory) {
+      // failed, log and reject the promise
+      if (error) {
+        console.log("d3.json error: ", error);
+        reject(error);
+      }
+
+      // ignore clat & slat - they're huge and useless
+      d3.keys(inventory).filter(function (key) {
+        if (key === "clat" || key === "slat") {
+          return false;
+        }
+        return true;
+      }).forEach(function (key) {
+        APP.inventory = APP.inventory.concat(inventory[key]);
+      });
+
+      // load all of the summaries over XHR
+      APP.inventory.forEach(function (json_file) {
+        d3.json(json_file, function (error, summary) {
+          // failed, log and reject the promise
+          if (error) {
+            console.log("d3.json error: ", error);
+            reject(error);
+          }
+
+          APP.summaries.push(summary);
+
+          if (APP.summaries.length === APP.inventory.length) {
+            APP.build_indices();
+
+            // when data loading & indexing is complete, resolve the promise
+            resolve();
+          }
+        });
+      });
+    });
+  });
+};
+
+// called after all the data is downloaded and extract some lists for use
+// in building the UI ... maybe should be renamed
+APP.build_indices = function () {
+  console.log("Indexing complete. APP:", APP);
+
+  APP.devices = APP.uniq(APP.summaries, function (d) { return d.fio_command.device.name; });
+  APP.benchmarks = APP.uniq(APP.summaries, function (d) { return d.fio_command.fio_name; }, "benchmark");
+  APP.suites = APP.uniq(APP.summaries, function (d) { return d.fio_command.suite_name; });
+
+  // assign devices colors at startup so they're consistent across changes
+  var colors = d3.scale.category20();
+  APP.device_colors = {};
+  APP.devices.forEach(function (d,i) {
+    APP.device_colors[d] = colors(i);
+  });
+
+  // HACK: fix summary.name, check for duplicate entrires
+  APP.by_name = {};
+  APP.summaries.forEach(function (d) {
+    d.name = d.fio_command.name; // the preprocessor isn't setting this correctly, fix later
+    if (APP.by_name.hasOwnProperty(d.name)) {
+      var old = APP.by_name[d.name];
+      //console.log("WARNING DUPLICATE NAME(" + old.path + "): (name, have, found) ", d.name, d, old);
+    } else {
+      APP.by_name[d.name] = d;
+    }
+  });
+
+  var sample_types = {};
+  APP.summaries.forEach(function (smry) {
+    d3.keys(smry).forEach(function (key) {
+      if (key.length > 1 && key.match(/bin/)) {
+        sample_types[key] = true;
+      }
+    });
+  });
+  APP.sample_types = d3.keys(sample_types);
+};
 
 // vim: et ts=2 sw=2 ai smarttab

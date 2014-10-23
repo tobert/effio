@@ -108,7 +108,8 @@ func (cmd *Cmd) SummarizeAll() {
 
 func InventoryCSVFiles(dpath string) []string {
 	out := make([]string, 0)
-	re := "(bw_bw|lat_lat|lat_slat|lat_clat|iops_iops)\\.?\\d*\\.log$"
+	re := "(bw_bw|lat_lat|iops_iops)\\.?\\d*\\.log$"
+	//re := "(bw_bw|lat_lat|lat_slat|lat_clat|iops_iops)\\.?\\d*\\.log$"
 
 	visitor := func(dpath string, f os.FileInfo, err error) error {
 		if err != nil {

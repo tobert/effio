@@ -62,7 +62,7 @@ APP.chart = function (target, devices, chart1, chart2) {
 
   var ctype = chart1.type.split("."); // c3.line, c3.bar, d3.box
   if (ctype[0] === "c3") {
-    var chart = APP.c3chart(target, chart1_data, chart1.sample, ctype[1], chart1.fun);
+    var chart = APP.c3chart(target, chart1_data, ctype[1], chart1);
 
     // disabled for now (2014-09-10)
     if (chart2.hasOwnProperty("log_type") && chart2["log_type"] != "off") {
@@ -128,17 +128,24 @@ APP.summaries_to_c3 = function (data, sample_type, fun) {
 };
 
 // draw charts with c3.js
-APP.c3chart = function (target, data, sample_type, chart_type, fun) {
-  console.log("APP.c3chart", data, sample_type, chart_type, fun);
+APP.c3chart = function (target, data, chart_type, config) {
+  console.log("APP.c3chart", data, chart_type, config);
 
-  var cols = APP.summaries_to_c3(data, sample_type, fun);
+  var cols = APP.summaries_to_c3(data, config.sample, config.fun);
+
+  var ytxt = "Latency (microseconds)"
+  if (config.log_type === "bw") {
+    ytxt = "Bandwidth"
+  } else if (config.log_type === "iops") {
+    ytxt = "IOPS"
+  }
 
   return c3.generate({
     bindto: target,
     data: { columns: cols, type: chart_type, colors: APP.device_colors },
     axis: {
-      y: { label: { text: "Latency (usec)", position: "outer-middle" } },
-      x: { label: { text: "Time Offset (seconds)" } }
+      y: { label: { text: ytxt, position: "outer-middle" } },
+      x: { label: { text: "Time Offset (0-10 minutes)" } }
     }
   });
 };
@@ -263,7 +270,7 @@ APP.iqr = function (k) {
 // see also: ../css/app.css
 APP.setup_chart_controls = function (target) {
   var body = d3.select(target);
-  body.selectAll("div").remove();
+  body.selectAll(".container-fluid").remove();
   var ctr = body.append("div").classed({"container-fluid": true});
 
   var top_div = ctr.append("div").classed({"row": true}).attr("id", "top_row");
@@ -517,8 +524,8 @@ APP.run = function () {
     d3.json("/inventory", function (error, inventory) {
       // failed, log and reject the promise
       if (error) {
-        console.log("d3.json error: ", error);
-        reject(error);
+        console.log("d3.json error: " + error);
+        return reject(error);
       }
 
       // ignore clat & slat - they're huge and useless
@@ -536,8 +543,8 @@ APP.run = function () {
         d3.json(json_file, function (error, summary) {
           // failed, log and reject the promise
           if (error) {
-            console.log("d3.json error: ", error);
-            reject(error);
+            console.log("d3.json error: " + error);
+            return reject(error);
           }
 
           APP.summaries.push(summary);
@@ -546,7 +553,7 @@ APP.run = function () {
             APP.build_indices();
 
             // when data loading & indexing is complete, resolve the promise
-            resolve();
+            return resolve();
           }
         });
       });

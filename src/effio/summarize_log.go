@@ -213,7 +213,7 @@ func (lrs LogRecs) Bins(bins int) (all, read, write, trim LogBin) {
 		// check bounds on each call: when bin_width * bins < record_count
 		// care must be taken to not call updateBucket which may try to write
 		// a bin entry beyond the end of the slice
-		if arec < len(rbkt) && acnt < bins {
+		if arec < len(abkt) && acnt < bins {
 			arec, acnt = abkt.updateBucket(arec, acnt, all, lrs, i)
 		}
 

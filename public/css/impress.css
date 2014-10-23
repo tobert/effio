@@ -10,8 +10,18 @@ q:before, q:after {
 
 body {
     min-height: 740px;
-    background: rgb(215, 215, 215);
-    background: radial-gradient(rgb(240, 240, 240), rgb(190, 190, 190));
+    background: #fdfdfd;
+    background: linear-gradient(to bottom,  #fdfdfd 0%, #eaf0f9 100%);
+}
+
+.impressive-bg-bottom {
+  position: absolute;
+  bottom: 0px;
+  left: 0px;
+  height: 83px;
+  width: 100%;
+  background: url(../images/summit-bg-bottom.png);
+  background-size: 100% auto;
 }
 
 /*

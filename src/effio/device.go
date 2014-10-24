@@ -54,7 +54,6 @@ func (d *Device) IsMounted() (bool, error) {
 		return true, nil
 	}
 }
-func (d *Device) Mount() error {
 
 func (d *Device) Mount() error {
 	if d.Device == "" {

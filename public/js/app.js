@@ -177,8 +177,8 @@ APP.d3boxRedraw = function (target,summaries, sample_type, fun){
    svg.datum(updateData).call(chart.duration(1000));
 
 }
-// use the percentiles to get d3 box.js to work
-// only supports 4-5 elements!
+// Does some math to make the boxes the right size.
+// If you try to squeeze to many they'll be hard to see.
 APP.d3box = function (target, summaries, sample_type, fun) {
   console.log("APP.d3box", summaries, sample_type);
   d3.select(target).selectAll("svg").remove();
@@ -192,7 +192,7 @@ APP.d3box = function (target, summaries, sample_type, fun) {
   var margin = {top: 10, right: lrMargin, bottom: 20, left: lrMargin};
   var width = ($("#mid_middle").width() - ((margin.left + margin.right) * summaries.length))/(summaries.length+1);  
 
-  //sanity check
+  //sanity check-can probably remov this now
   if (width < 0) { console.log("check your margins, we have a negative width!");}
 
   var height = 600 - margin.top - margin.bottom;
@@ -218,11 +218,13 @@ APP.d3box = function (target, summaries, sample_type, fun) {
     return smry.fio_command.device.name;
   });
 
+  var summarizedDevices = devices;
   chart = d3.box()
     .whiskers(APP.iqr(1.5))
     .width(width)
     .height(height)
-    .domain([min, max]);
+    .domain([min, max])
+    .summarizedDevices(summarizedDevices);
 
   svg = d3.select("#mid_middle").selectAll("svg")
     .data(data)

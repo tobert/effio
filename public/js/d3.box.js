@@ -9,9 +9,9 @@ d3.box = function() {
       value = Number,
       whiskers = boxWhiskers,
       quartiles = boxQuartiles,
-      tickFormat = null;
+			tickFormat = null,
+			summarizedDevices = null;
 
-  colorPick = d3.scale.category10()
 
 		// For each small multiple…
   function box(g) {
@@ -87,7 +87,8 @@ d3.box = function() {
           .attr("height", function(d) { return x0(d[0]) - x0(d[2]); })
 				  .on('mouseout', function(){ $($(".box-device-name")[i]).css("fill","gray")} )
 					.on('mouseover', function(){ $($(".box-device-name")[i]).css("fill","black")} )
-					.style("fill", function() { return colorPick(i); })
+					//use the same color stuff as the rest of the app
+					.style("fill", function() { return APP.device_colors[summarizedDevices[i]]; })
         .transition()
           .duration(duration)
           .attr("y", function(d) { return x1(d[2]); })
@@ -247,6 +248,12 @@ d3.box = function() {
     whiskers = x;
     return box;
   };
+
+	box.summarizedDevices = function(x){
+		if(!arguments.length) return summarizedDevices;
+		summarizedDevices = x;
+		return box;
+	};
 
   box.quartiles = function(x) {
     if (!arguments.length) return quartiles;

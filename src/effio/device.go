@@ -85,6 +85,9 @@ func (d *Device) Mount() error {
 }
 
 func (d *Device) Umount() error {
+	if !d.DoMount {
+		return nil
+	}
 	return syscall.Unmount(d.Mountpoint, 0)
 }
 

@@ -16,6 +16,9 @@
 
 var APP = {};
 
+//new global var for svg and chart for transitions
+var svg = {};
+var chart = {};
 // some functions used in selectors for extracting fields from the summaries
 APP.fields = {
   average:     function (smry) { return smry.average; },
@@ -68,7 +71,11 @@ APP.chart = function (target, devices, chart1, chart2) {
     }
   // doesn't make sense to do two dimensions on a box chart (for now)
   } else if (ctype[0] === "d3" && ctype[1] === "box") {
-    APP.d3box(target, chart1_data, chart1.sample, chart1.fun);
+    
+    //hardcoding this to turn off animation until I figure out how to deal with adding and removing devices
+    var flag = false;
+
+    flag && $(".box").length>0 ? APP.d3boxRedraw(target, chart1_data, chart1.sample, chart1.fun): APP.d3box(target, chart1_data, chart1.sample, chart1.fun);
   } else {
     alert("Invalid chart type: '" + chart1.type + "'");
   }
@@ -143,14 +150,51 @@ APP.c3chart = function (target, data, chart_type, config) {
   });
 };
 
-// use the percentiles to get d3 box.js to work
-// only supports 4-5 elements!
+
+APP.d3boxRedraw = function (target,summaries, sample_type, fun){
+  var max = -Infinity;
+  var min = Infinity;
+  
+  var newData = summaries.map(function (smry, i) {
+          return d3.keys(smry.percentiles)                                                                                 
+            .filter(function (key) { return +key < 99.1; })
+            .sort(function (a,b) { return a - b; })
+            .map(function (key,i) {
+                var val = smry.percentiles[key].value;
+        
+                // side-effects to save a pass over the data
+                if (val > max) { max = val; }
+              if (val < min) { min = val; }
+      
+                return val;
+            });
+      });
+
+   var updateData = function(d, i){
+      return newData[i];
+   }
+
+   svg.datum(updateData).call(chart.duration(1000));
+
+}
+// Does some math to make the boxes the right size.
+// If you try to squeeze to many they'll be hard to see.
 APP.d3box = function (target, summaries, sample_type, fun) {
   console.log("APP.d3box", summaries, sample_type);
   d3.select(target).selectAll("svg").remove();
 
-  var margin = {top: 10, right: 40, bottom: 20, left: 40};
-  var width = 100 - margin.left - margin.right;
+  var lrMargin = ($("#mid_middle").width() /summaries.length) * .4
+  var fontSize = 10;
+  if (lrMargin < 30) {
+    fontSize = 5;
+  }
+
+  var margin = {top: 10, right: lrMargin, bottom: 20, left: lrMargin};
+  var width = ($("#mid_middle").width() - ((margin.left + margin.right) * summaries.length))/(summaries.length+1);  
+
+  //sanity check-can probably remov this now
+  if (width < 0) { console.log("check your margins, we have a negative width!");}
+
   var height = 600 - margin.top - margin.bottom;
   var max = -Infinity;
   var min = Infinity;
@@ -174,13 +218,15 @@ APP.d3box = function (target, summaries, sample_type, fun) {
     return smry.fio_command.device.name;
   });
 
-  var chart = d3.box()
+  var summarizedDevices = devices;
+  chart = d3.box()
     .whiskers(APP.iqr(1.5))
     .width(width)
     .height(height)
-    .domain([min, max]);
+    .domain([min, max])
+    .summarizedDevices(summarizedDevices);
 
-  var svg = d3.select("#mid_middle").selectAll("svg")
+  svg = d3.select("#mid_middle").selectAll("svg")
     .data(data)
     .enter().append("svg")
       .attr("width", width + margin.left + margin.right)
@@ -201,8 +247,11 @@ APP.d3box = function (target, summaries, sample_type, fun) {
 
   var box = bg.append("g")
     .attr("class", "box")
-    .attr("transform", "translate(" + margin.left + "," + margin.top + ")")
     .call(chart);
+
+
+  //There's a better way to do this probably inside box.d3.js
+  $(".c3 svg").css("font-size",""+fontSize+"px");
 };
 
 // needed by d3.box to compute inter-quartile range

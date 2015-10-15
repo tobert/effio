@@ -29,6 +29,7 @@ type Device struct {
 	Media      string `json:"media"`
 	Blocksize  int    `json:"blocksize"`
 	RPM        int    `json:"rpm"`
+	DoMount    bool   `json:"mount"`
 }
 
 type Devices []Device
@@ -56,11 +57,17 @@ func (d *Device) IsMounted() (bool, error) {
 }
 
 func (d *Device) Mount() error {
-	if d.Device == "" {
-		return errors.New("'device' must be defined in device json for mounting support")
-	}
 	if d.Mountpoint == "" {
 		return errors.New("'mountpoint' must be defined in device json for mounting support")
+	}
+
+	// device is expected to be mounted, nothing to do
+	if !d.DoMount {
+		return nil
+	}
+
+	if d.Device == "" {
+		return errors.New("'device' must be defined in device json for mounting support")
 	}
 	if d.Filesystem == "" {
 		return errors.New("'filesystem' must be defined in device json for mounting support")
@@ -78,6 +85,9 @@ func (d *Device) Mount() error {
 }
 
 func (d *Device) Umount() error {
+	if !d.DoMount {
+		return nil
+	}
 	return syscall.Unmount(d.Mountpoint, 0)
 }
 

@@ -35,7 +35,7 @@ type FioJsonJobStats struct {
 	BwAgg     float64         `json:"bw_agg"`
 	BwMean    float64         `json:"bw_mean"`
 	BwStdev   float64         `json:"bw_dev"`
-	Iops      int             `json:"iops"`
+	Iops      float64         `json:"iops"`
 	Runtime   int             `json:"runtime"`
 	Slat      *FioJsonLatency `json:"slat"`
 	Clat      *FioJsonLatency `json:"clat"`
